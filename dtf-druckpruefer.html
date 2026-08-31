@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DTF-Druckprüfer</title>
+<style>
+  :root{
+    --bg:#eef0f2; --panel:#ffffff; --ink:#15181b; --muted:#5c646c;
+    --accent:#c40063; --line:#d8dce0;
+    --ok:#1e8a4a; --warn:#b07a00; --err:#c0272d;
+    --ok-bg:#e7f4ec; --warn-bg:#fdf3dd; --err-bg:#fbe9e9;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:15px; line-height:1.5;
+  }
+  header{padding:28px 24px 8px; max-width:1060px; margin:0 auto;}
+  header h1{margin:0; font-size:1.5rem; font-weight:700; letter-spacing:-.01em;}
+  .ver{font-size:.8rem; font-weight:600; color:var(--accent); vertical-align:middle; border:1px solid var(--accent); border-radius:6px; padding:1px 7px; margin-left:6px;}
+  details.adv{margin-top:12px; border-top:1px solid var(--line); padding-top:10px;}
+  details.adv summary{cursor:pointer; color:var(--muted); font-size:.92rem;}
+  details.adv summary:hover{color:var(--ink);}
+  header p{margin:4px 0 0; color:var(--muted); max-width:60ch;}
+  main{max-width:1060px; margin:0 auto; padding:16px 24px 48px;}
+
+  .drop{
+    display:block;
+    border:2px dashed var(--line); border-radius:10px; background:var(--panel);
+    padding:36px 20px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .drop input[type=file]{
+    position:absolute; width:1px; height:1px; opacity:0; overflow:hidden;
+    clip:rect(0 0 0 0); white-space:nowrap;
+  }
+  .drop.over{border-color:var(--accent); background:#fdf2f7;}
+  .drop strong{color:var(--accent);}
+  .drop small{display:block; margin-top:6px; color:var(--muted);}
+  .drop:focus-visible{outline:3px solid var(--accent); outline-offset:2px;}
+
+  .error-box{
+    display:none; margin-top:14px; padding:12px 16px; border-radius:8px;
+    background:var(--err-bg); color:var(--err); border:1px solid #eec1c3;
+  }
+  .error-box.show{display:block;}
+
+  .app{display:none; margin-top:20px; gap:20px;}
+  .app.show{display:grid; grid-template-columns:minmax(0,1fr) 380px;}
+  @media (max-width:860px){ .app.show{grid-template-columns:1fr;} }
+
+  .preview-wrap{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:16px; display:flex; flex-direction:column; gap:12px;
+  }
+  .checker{
+    border-radius:6px; overflow:hidden; min-height:240px;
+    display:flex; align-items:center; justify-content:center;
+    background:
+      linear-gradient(45deg,#cfd3d7 25%,transparent 25%,transparent 75%,#cfd3d7 75%),
+      linear-gradient(45deg,#cfd3d7 25%,#e9ebed 25%,#e9ebed 75%,#cfd3d7 75%);
+    background-size:24px 24px; background-position:0 0,12px 12px;
+  }
+  .checker canvas{max-width:100%; max-height:480px; display:block;}
+  .file-meta{color:var(--muted); font-size:.9rem;}
+  .file-meta b{color:var(--ink);}
+
+  .side{display:flex; flex-direction:column; gap:16px;}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px;
+  }
+  .card h2{margin:0 0 10px; font-size:1.02rem;}
+
+  .checks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px;}
+  .checks li{
+    display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:8px;
+    font-size:.92rem;
+  }
+  .checks li .dot{
+    flex:none; width:12px; height:12px; border-radius:50%; margin-top:5px;
+  }
+  .checks li.ok{background:var(--ok-bg);} .checks li.ok .dot{background:var(--ok);}
+  .checks li.warn{background:var(--warn-bg);} .checks li.warn .dot{background:var(--warn);}
+  .checks li.err{background:var(--err-bg);} .checks li.err .dot{background:var(--err);}
+  .checks li span b{display:block;}
+
+  label{display:block; font-weight:600; margin-bottom:4px;}
+  .size-row{display:flex; gap:10px; align-items:flex-end;}
+  .size-row .field{flex:1;}
+  input[type=number]{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:7px;
+    font:inherit; background:#fff;
+  }
+  input[type=number]:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+  .height-out{color:var(--muted); font-size:.92rem; padding-bottom:10px; white-space:nowrap;}
+
+  .toggle{display:flex; gap:10px; align-items:flex-start; margin-top:12px; cursor:pointer; font-weight:400;}
+  .toggle input{margin-top:3px; accent-color:var(--accent); width:16px; height:16px;}
+  .toggle small{display:block; color:var(--muted);}
+  .tol-row{display:flex; gap:10px; align-items:center; margin:8px 0 4px 26px;}
+  .tol-row label{margin:0; font-weight:400; color:var(--muted); font-size:.9rem;}
+  .tol-row input[type=range]{flex:1; accent-color:var(--accent);}
+  .tol-row output{min-width:2ch; text-align:right; font-variant-numeric:tabular-nums; font-size:.9rem;}
+
+  .export-btn{
+    width:100%; padding:12px; border:0; border-radius:8px; background:var(--accent);
+    color:#fff; font:inherit; font-weight:700; cursor:pointer; margin-top:4px;
+  }
+  .export-btn:hover{background:#a80056;}
+  .export-btn:focus-visible{outline:3px solid #15181b; outline-offset:2px;}
+  .export-btn:disabled{background:#c9ced3; cursor:not-allowed;}
+  .export-row{display:flex; gap:10px; margin-top:10px;}
+  .export-row .export-btn{margin-top:0;}
+  .export-btn.secondary{
+    background:#fff; color:var(--accent); border:1.5px solid var(--accent); font-weight:600;
+  }
+  .export-btn.secondary:hover{background:#fdf2f7;}
+  .export-btn.secondary:disabled{background:#fff; color:#c9ced3; border-color:#c9ced3;}
+  .export-note{margin:8px 0 0; font-size:.88rem; color:var(--muted);}
+  .export-note.warn{color:var(--warn); font-weight:600;}
+</style>
+</head>
+<body>
+<header>
+  <h1>DTF-Druckprüfer <span class="ver">v12</span></h1>
+  <p>Datei laden, fertig: Die App entfernt Hintergrund, schneidet zu, glättet Logos und härtet Kanten automatisch. Danach nur noch Druckbreite prüfen und exportieren. Alles läuft lokal im Browser.</p>
+</header>
+<main>
+  <label class="drop" id="drop" for="fileInput">
+    <strong>Datei hierher ziehen</strong> oder tippen zum Auswählen
+    <small>PNG, JPG oder PDF (erste Seite wird verwendet). JPG hat nie Transparenz; dafür gibt es die Option „Weißen Hintergrund entfernen“.</small>
+    <input type="file" id="fileInput" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf">
+  </label>
+  <div class="error-box" id="errorBox" role="alert"></div>
+
+  <div class="app" id="app">
+    <section class="preview-wrap" aria-label="Vorschau">
+      <div class="checker"><canvas id="previewCanvas"></canvas></div>
+      <div class="file-meta" id="fileMeta"></div>
+      <div class="file-meta" id="procStatus"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>Prüfergebnisse</h2>
+        <ul class="checks" id="checks"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Zielgröße</h2>
+        <div class="size-row">
+          <div class="field">
+            <label for="widthCm">Druckbreite in cm</label>
+            <input type="number" id="widthCm" min="0.5" max="300" step="0.1" inputmode="decimal">
+          </div>
+          <div class="height-out" id="heightOut">Höhe: –</div>
+        </div>
+        <button class="export-btn secondary" id="autoBtn" style="width:100%;margin:2px 0 4px;" disabled>Erneut automatisch optimieren</button>
+        <button class="export-btn secondary" id="aiBgBtn" style="width:100%;margin:2px 0 4px;" disabled>Foto-Hintergrund entfernen (KI)</button>
+        <p class="export-note" style="margin:0 0 4px;">Für Motive vor Foto-Hintergründen. Läuft lokal im Browser; beim ersten Mal wird einmalig ein Modell (ca. 40 MB) geladen.</p>
+        <details class="adv">
+          <summary>Einstellungen anpassen</summary>
+        <label class="toggle">
+          <input type="checkbox" id="removeWhiteToggle">
+          <span>Hintergrund entfernen (Randfarbe)
+            <small>Entfernt einfarbige Flächen, die mit dem Bildrand verbunden sind. Farbige Teile im Motiv bleiben erhalten.</small>
+          </span>
+        </label>
+        <div class="tol-row" id="tolRow" hidden>
+          <label for="tolInput">Toleranz</label>
+          <input type="range" id="tolInput" min="0" max="60" value="12">
+          <output id="tolVal" for="tolInput">12</output>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="edgeToggle">
+          <span>Kanten optimieren
+            <small>Trägt den hellen Saum an der Kontur ab und glättet Treppenkanten. Danach am besten mit „Halbtransparenz härten“ kombinieren.</small>
+          </span>
+        </label>
+        <div class="tol-row" id="edgeRow" hidden>
+          <label for="edgeInput">Saum abtragen (px)</label>
+          <input type="range" id="edgeInput" min="0" max="3" value="1">
+          <output id="edgeVal" for="edgeInput">1</output>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="trimToggle">
+          <span>Auf Motiv zuschneiden
+            <small>Entfernt leere Ränder um das Motiv. Die Druckbreite bezieht sich danach auf das Motiv selbst, nicht auf die Leinwand.</small>
+          </span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="vectorToggle">
+          <span>Logo-Glättung (vektorisieren)
+            <small>Zeichnet das Motiv als Vektorform nach und rendert es neu. Entfernt JPEG-Störungen und Treppenkanten. Gut für Logos und Schrift, ungeeignet für Fotos.</small>
+          </span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="hardenToggle">
+          <span>Halbtransparenz härten
+            <small>Alpha unter 128 wird 0, ab 128 wird 255. Verhindert ausgefranste Kanten im DTF-Druck.</small>
+          </span>
+        </label>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Export</h2>
+        <button class="export-btn" id="exportBtn" disabled>PNG exportieren (Druckdatei)</button>
+        <div class="export-row">
+          <button class="export-btn secondary" id="exportSvgBtn" disabled>Als SVG</button>
+          <button class="export-btn secondary" id="exportPdfBtn" disabled>Als PDF</button>
+        </div>
+        <p class="export-note" id="exportNote">Erzeugt eine PNG mit Alphakanal, skaliert auf die Zielbreite bei 300 DPI (pHYs-Metadaten gesetzt).</p>
+        <p class="export-note">SVG wird aus den Pixeln nachgezeichnet: bei Logos und flächigen Grafiken gut, bei Fotos sichtbar vereinfacht. PDF bettet die bereinigte PNG in eine Seite mit exakter cm-Größe ein.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/imagetracerjs/1.2.6/imagetracer_v1.2.6.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  var drop = document.getElementById("drop");
+  var fileInput = document.getElementById("fileInput");
+  var errorBox = document.getElementById("errorBox");
+  var app = document.getElementById("app");
+  var previewCanvas = document.getElementById("previewCanvas");
+  var fileMeta = document.getElementById("fileMeta");
+  var checksEl = document.getElementById("checks");
+  var widthInput = document.getElementById("widthCm");
+  var heightOut = document.getElementById("heightOut");
+  var hardenToggle = document.getElementById("hardenToggle");
+  var removeWhiteToggle = document.getElementById("removeWhiteToggle");
+  var tolRow = document.getElementById("tolRow");
+  var tolInput = document.getElementById("tolInput");
+  var tolVal = document.getElementById("tolVal");
+  var edgeToggle = document.getElementById("edgeToggle");
+  var edgeRow = document.getElementById("edgeRow");
+  var edgeInput = document.getElementById("edgeInput");
+  var edgeVal = document.getElementById("edgeVal");
+  var vectorToggle = document.getElementById("vectorToggle");
+  var trimToggle = document.getElementById("trimToggle");
+  var exportBtn = document.getElementById("exportBtn");
+  var exportSvgBtn = document.getElementById("exportSvgBtn");
+  var exportPdfBtn = document.getElementById("exportPdfBtn");
+  var exportNote = document.getElementById("exportNote");
+
+  function setExportEnabled(on){
+    exportBtn.disabled = !on;
+    exportSvgBtn.disabled = !on;
+    exportPdfBtn.disabled = !on;
+    var ab = document.getElementById("autoBtn");
+    if (ab) ab.disabled = !on;
+    var kb = document.getElementById("aiBgBtn");
+    if (kb) kb.disabled = !on;
+  }
+
+  // KI-Freistellung für Foto-Hintergründe (läuft lokal per WebAssembly)
+  document.getElementById("aiBgBtn").addEventListener("click", function(){
+    if (!state) return;
+    clearError();
+    var btn = document.getElementById("aiBgBtn");
+    var prev = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "KI-Modell lädt und rechnet…";
+    import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm")
+      .then(function(mod){
+        return new Promise(function(resolve, reject){
+          state.original.toBlob(function(blob){
+            if (!blob) reject(new Error("Bild konnte nicht gelesen werden"));
+            else resolve(mod.removeBackground(blob));
+          }, "image/png");
+        });
+      })
+      .then(function(resultBlob){
+        return createImageBitmap(resultBlob);
+      })
+      .then(function(bmp){
+        var c = document.createElement("canvas");
+        c.width = bmp.width; c.height = bmp.height;
+        c.getContext("2d").drawImage(bmp, 0, 0);
+        state.original = c;
+        state.bgColor = null;
+        autoOptimize(); // freigestelltes Bild durch die normale Automatik schicken
+      })
+      .catch(function(e){
+        showError("Die KI-Freistellung ist fehlgeschlagen: " + (e && e.message ? e.message : "unbekannter Fehler") + ". Internetverbindung nötig (einmaliger Modell-Download).");
+      })
+      .finally(function(){
+        btn.textContent = prev;
+        btn.disabled = false;
+      });
+  });
+
+  // Zustand des geladenen Bildes
+  var state = null;
+  // state = { canvas, width, height, hasAlpha, semiCount, semiShare, isPdf, baseName }
+
+  function showError(msg){
+    errorBox.textContent = msg;
+    errorBox.classList.add("show");
+  }
+  function clearError(){
+    errorBox.textContent = "";
+    errorBox.classList.remove("show");
+  }
+
+  // ---------- Datei-Eingang ----------
+  fileInput.addEventListener("change", function(){
+    if (fileInput.files && fileInput.files[0]) handleFile(fileInput.files[0]);
+    fileInput.value = "";
+  });
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  function baseName(name){
+    return name.replace(/\.[^.]+$/, "").replace(/(_dtf(_300dpi)?)+$/i, "");
+  }
+
+  function handleFile(file){
+    clearError();
+    var isPng = file.type === "image/png" || /\.png$/i.test(file.name);
+    var isJpg = file.type === "image/jpeg" || /\.jpe?g$/i.test(file.name);
+    var isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    if (!isPng && !isJpg && !isPdf){
+      showError("Dieses Format wird nicht unterstützt. Bitte eine PNG-, JPG- oder PDF-Datei hochladen.");
+      return;
+    }
+    if (isPdf && !window.pdfjsLib){
+      showError("PDF-Unterstützung konnte nicht geladen werden (pdf.js nicht verfügbar). Bitte Internetverbindung prüfen oder eine PNG hochladen.");
+      return;
+    }
+    var promise = isPdf ? loadPdf(file) : loadPng(file);
+    promise.then(function(canvas){
+      analyze(canvas, isPdf, baseName(file.name), file.size);
+    }).catch(function(err){
+      showError("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : "unbekannter Fehler") + ". Bitte prüfen, ob die Datei intakt ist.");
+    });
+  }
+
+  function loadPng(file){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        if (img.naturalWidth === 0 || img.naturalHeight === 0){
+          reject(new Error("Bild hat keine Pixelmaße")); return;
+        }
+        var c = document.createElement("canvas");
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext("2d").drawImage(img, 0, 0);
+        resolve(c);
+      };
+      img.onerror = function(){
+        URL.revokeObjectURL(url);
+        reject(new Error("PNG ist beschädigt oder kein gültiges Bild"));
+      };
+      img.src = url;
+    });
+  }
+
+  function loadPdf(file){
+    return file.arrayBuffer().then(function(buf){
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    }).then(function(pdf){
+      return pdf.getPage(1);
+    }).then(function(page){
+      // Rendern mit ca. 300 DPI relativ zur PDF-Seitengröße (72 pt = 1 Zoll)
+      var scale = 300 / 72;
+      var viewport = page.getViewport({ scale: scale });
+      var MAX = 8000; // Speicherschutz
+      if (viewport.width > MAX || viewport.height > MAX){
+        var f = Math.min(MAX / viewport.width, MAX / viewport.height);
+        viewport = page.getViewport({ scale: scale * f });
+      }
+      var c = document.createElement("canvas");
+      c.width = Math.round(viewport.width);
+      c.height = Math.round(viewport.height);
+      var ctx = c.getContext("2d");
+      // Kein weißer Hintergrund: Transparenz bleibt erhalten, falls die PDF keine deckende Fläche hat
+      return page.render({ canvasContext: ctx, viewport: viewport, background: "rgba(0,0,0,0)" })
+        .promise.then(function(){ return c; });
+    });
+  }
+
+  // ---------- Analyse ----------
+  function analyze(canvas, isPdf, name, fileSize){
+    state = {
+      original: canvas, canvas: canvas,
+      width: canvas.width, height: canvas.height,
+      hasAlpha: false, semiCount: 0, semiShare: 0,
+      isPdf: isPdf, baseName: name
+    };
+
+    // Bereinigungs-Schalter pro Datei zurücksetzen
+    removeWhiteToggle.checked = false;
+    tolRow.hidden = true;
+    edgeToggle.checked = false;
+    edgeRow.hidden = true;
+    vectorToggle.checked = false;
+    trimToggle.checked = false;
+    hardenToggle.checked = false;
+    state.bgColor = null;
+    state.vectorSvg = null;
+
+    // Standard-Zielbreite wird nach der Verarbeitung automatisch gesetzt (bis der Nutzer sie ändert)
+    state.widthAuto = true;
+    var maxWcm = canvas.width / 300 * 2.54;
+    widthInput.value = (Math.round(maxWcm * 10) / 10).toFixed(1);
+
+    fileMeta.innerHTML =
+      "<b>" + escapeHtml(name) + (isPdf ? ".pdf (Seite 1)" : ".png") + "</b> · " +
+      canvas.width + " × " + canvas.height + " px · " + formatBytes(fileSize);
+
+    app.classList.add("show");
+    setExportEnabled(true);
+    autoOptimize(); // alles automatisch: Hintergrund, Zuschnitt, Glättung, Härten
+  }
+
+  // Erzeugt aus dem Original die Arbeitsversion und zählt Alpha-Werte neu.
+  function reprocess(){
+    if (!state) return false;
+    state.vectorSvg = null;
+    var c = state.original;
+    if (removeWhiteToggle.checked){
+      c = removeWhiteBg(c, parseInt(tolInput.value, 10) || 0, state.bgColor || null);
+    }
+    if (edgeToggle.checked){
+      c = cleanEdges(c, parseInt(edgeInput.value, 10) || 0);
+    }
+    if (trimToggle.checked){
+      c = trimCanvas(c);
+    }
+    if (vectorToggle.checked){
+      if (!window.ImageTracer){
+        showError("Die Vektorisierungs-Bibliothek konnte nicht geladen werden. Logo-Glättung ist ohne Internetverbindung beim ersten Laden nicht verfügbar.");
+        return finishReprocess(c);
+      }
+      vectorSmooth(c).then(finishReprocess).catch(function(){
+        showError("Die Logo-Glättung ist fehlgeschlagen; es wird die ungeglättete Version verwendet.");
+        finishReprocess(c);
+      });
+      return true;
+    }
+    return finishReprocess(c);
+  }
+
+  // Schneidet leere Ränder ab (Alpha ≤ 16 zählt als leer, um unsichtbare Alpha-Reste zu ignorieren), mit 2 px Sicherheitsrand.
+  function trimCanvas(srcCanvas){
+    var w = srcCanvas.width, h = srcCanvas.height;
+    var ctx = srcCanvas.getContext("2d");
+    var d;
+    try { d = ctx.getImageData(0, 0, w, h).data; } catch(e){ return srcCanvas; }
+    var minX = w, minY = h, maxX = -1, maxY = -1;
+    for (var y = 0; y < h; y++){
+      for (var x = 0; x < w; x++){
+        if (d[(y * w + x) * 4 + 3] > 16){
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return srcCanvas; // komplett transparent
+    minX = Math.max(0, minX - 2); minY = Math.max(0, minY - 2);
+    maxX = Math.min(w - 1, maxX + 2); maxY = Math.min(h - 1, maxY + 2);
+    var tw = maxX - minX + 1, th = maxY - minY + 1;
+    if (tw >= w - 4 && th >= h - 4) return srcCanvas; // kein nennenswerter Rand
+    var c = document.createElement("canvas");
+    c.width = tw; c.height = th;
+    c.getContext("2d").drawImage(srcCanvas, minX, minY, tw, th, 0, 0, tw, th);
+    return c;
+  }
+
+  function finishReprocess(c){
+    state.canvas = c;
+    state.width = c.width;
+    state.height = c.height;
+    var w = c.width, h = c.height;
+    var data;
+    try {
+      data = c.getContext("2d").getImageData(0, 0, w, h).data;
+    } catch(e){
+      showError("Die Bilddaten konnten nicht ausgelesen werden.");
+      return false;
+    }
+    var semi = 0, transparent = 0;
+    for (var i = 3; i < data.length; i += 4){
+      var a = data[i];
+      if (a === 0) transparent++;
+      else if (a < 255) semi++;
+    }
+    var total = w * h;
+    state.hasAlpha = transparent + semi > 0;
+    state.semiCount = semi;
+    state.semiShare = semi / total;
+
+    if (state.widthAuto){
+      var mw = w / 300 * 2.54;
+      widthInput.value = (Math.round(mw * 10) / 10).toFixed(1);
+    }
+
+    drawPreview();
+    updateAll();
+    updateProcStatus();
+    return true;
+  }
+
+  function updateProcStatus(){
+    var parts = [];
+    if (removeWhiteToggle.checked) parts.push("Hintergrund entfernt");
+    if (edgeToggle.checked) parts.push("Kanten bereinigt");
+    if (trimToggle.checked) parts.push("zugeschnitten");
+    if (vectorToggle.checked) parts.push("Logo-Glättung aktiv");
+    if (hardenToggle.checked) parts.push("Härten aktiv");
+    document.getElementById("procStatus").textContent =
+      parts.length ? "Bearbeitung: " + parts.join(" · ") : "Bearbeitung: keine (Original)";
+  }
+
+  // Logo-Glättung: Motiv nachzeichnen (Vektorform), cachen und in Originalgröße neu rendern.
+  function vectorSmooth(srcCanvas){
+    return new Promise(function(resolve, reject){
+      try {
+        var f = Math.min(1, 1400 / Math.max(srcCanvas.width, srcCanvas.height));
+        var tw = Math.max(1, Math.round(srcCanvas.width * f));
+        var th = Math.max(1, Math.round(srcCanvas.height * f));
+        var tc = document.createElement("canvas");
+        tc.width = tw; tc.height = th;
+        var tctx = tc.getContext("2d");
+        tctx.imageSmoothingQuality = "high";
+        tctx.drawImage(srcCanvas, 0, 0, tw, th);
+        var idata = tctx.getImageData(0, 0, tw, th);
+        var dd = idata.data;
+        // Alpha-Reste entfernen: fast unsichtbare Pixel würden sonst als graue Fläche vektorisiert
+        for (var ci = 3; ci < dd.length; ci += 4){
+          if (dd[ci] < 40) dd[ci] = 0;
+        }
+        var svgStr = ImageTracer.imagedataToSVG(idata, {
+          numberofcolors: 32, pathomit: 6, ltres: 0.8, qtres: 0.8,
+          strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
+        });
+        state.vectorSvg = svgStr; // Vektorform cachen: der Export rendert daraus in Zielauflösung
+        renderSvgToCanvas(svgStr, srcCanvas.width, srcCanvas.height).then(resolve).catch(reject);
+      } catch(e){
+        reject(e);
+      }
+    });
+  }
+
+  // Rendert einen SVG-String (mit viewBox) in ein Canvas mit exakt w × h Pixeln.
+  function renderSvgToCanvas(svgStr, w, h){
+    return new Promise(function(resolve, reject){
+      var sized = svgStr.replace("<svg ", '<svg width="' + w + '" height="' + h + '" ');
+      var url = URL.createObjectURL(new Blob([sized], { type: "image/svg+xml" }));
+      var img = new Image();
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        var out = document.createElement("canvas");
+        out.width = w; out.height = h;
+        var octx = out.getContext("2d");
+        octx.imageSmoothingQuality = "high";
+        octx.drawImage(img, 0, 0, w, h);
+        resolve(stripRenderedBg(out));
+      };
+      img.onerror = function(){
+        URL.revokeObjectURL(url);
+        reject(new Error("SVG-Rendering fehlgeschlagen"));
+      };
+      img.src = url;
+    });
+  }
+
+  // Sicherung gegen Hintergrundplatten aus dem Tracer: Sind alle vier Ecken deckend
+  // und gleichfarbig, ist das eine Platte (kein Motiv füllt alle Ecken einfarbig) und
+  // wird per randverbundener Entfernung abgeschnitten.
+  function stripRenderedBg(canvas){
+    var w = canvas.width, h = canvas.height;
+    var ctx = canvas.getContext("2d");
+    var d;
+    try { d = ctx.getImageData(0, 0, w, h).data; } catch(e){ return canvas; }
+    function px(x, y){ var p = (y * w + x) * 4; return [d[p], d[p+1], d[p+2], d[p+3]]; }
+    var corners = [px(0,0), px(w-1,0), px(0,h-1), px(w-1,h-1)];
+    if (corners.some(function(c){ return c[3] < 60; })) return canvas; // Ecken transparent: keine Platte
+    var ref = corners[0];
+    var same = corners.every(function(c){
+      return Math.abs(c[0]-ref[0]) <= 40 && Math.abs(c[1]-ref[1]) <= 40 && Math.abs(c[2]-ref[2]) <= 40;
+    });
+    if (!same) return canvas;
+    return removeWhiteBg(canvas, 34, [ref[0], ref[1], ref[2]]);
+  }
+
+  // Entfernt einfarbige Flächen, die zusammenhängend mit dem Bildrand verbunden sind (Flood Fill).
+  // bgColor: [r,g,b] der Hintergrundfarbe (Standard Weiß). tolerance: erlaubte Abweichung je Kanal.
+  function removeWhiteBg(srcCanvas, tolerance, bgColor){
+    var bg = bgColor || [255, 255, 255];
+    var w = srcCanvas.width, h = srcCanvas.height;
+    var c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(srcCanvas, 0, 0);
+    var img = ctx.getImageData(0, 0, w, h);
+    var d = img.data;
+
+    function isWhite(idx){
+      var p = idx * 4;
+      return Math.abs(d[p] - bg[0]) <= tolerance &&
+             Math.abs(d[p+1] - bg[1]) <= tolerance &&
+             Math.abs(d[p+2] - bg[2]) <= tolerance &&
+             d[p+3] > 0;
+    }
+
+    var visited = new Uint8Array(w * h);
+    var stack = new Int32Array(w * h);
+    var top = 0;
+
+    // Alle Randpixel als Startpunkte
+    for (var x = 0; x < w; x++){
+      var t1 = x, t2 = (h - 1) * w + x;
+      if (!visited[t1] && isWhite(t1)){ visited[t1] = 1; stack[top++] = t1; }
+      if (!visited[t2] && isWhite(t2)){ visited[t2] = 1; stack[top++] = t2; }
+    }
+    for (var y = 0; y < h; y++){
+      var l = y * w, r = y * w + w - 1;
+      if (!visited[l] && isWhite(l)){ visited[l] = 1; stack[top++] = l; }
+      if (!visited[r] && isWhite(r)){ visited[r] = 1; stack[top++] = r; }
+    }
+
+    while (top > 0){
+      var idx = stack[--top];
+      d[idx * 4 + 3] = 0;
+      var cx = idx % w, cy = (idx / w) | 0;
+      if (cx > 0){ var n = idx - 1; if (!visited[n] && isWhite(n)){ visited[n] = 1; stack[top++] = n; } }
+      if (cx < w - 1){ var n2 = idx + 1; if (!visited[n2] && isWhite(n2)){ visited[n2] = 1; stack[top++] = n2; } }
+      if (cy > 0){ var n3 = idx - w; if (!visited[n3] && isWhite(n3)){ visited[n3] = 1; stack[top++] = n3; } }
+      if (cy < h - 1){ var n4 = idx + w; if (!visited[n4] && isWhite(n4)){ visited[n4] = 1; stack[top++] = n4; } }
+    }
+
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  // Kantenbereinigung: Alphakanal um erodePx erodieren (Saum abtragen), danach 3×3-Glättung.
+  function cleanEdges(srcCanvas, erodePx){
+    var w = srcCanvas.width, h = srcCanvas.height;
+    var c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(srcCanvas, 0, 0);
+    var img = ctx.getImageData(0, 0, w, h);
+    var d = img.data;
+
+    var a = new Uint8Array(w * h);
+    for (var i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
+
+    if (erodePx > 0) a = erodeAlpha(a, w, h, erodePx);
+    a = blurAlpha(a, w, h);
+
+    for (var j = 0; j < a.length; j++) d[j * 4 + 3] = a[j];
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  // Separables Minimum-Filter: zieht die Kontur um r Pixel nach innen.
+  function erodeAlpha(a, w, h, r){
+    var tmp = new Uint8Array(w * h);
+    for (var y = 0; y < h; y++){
+      var row = y * w;
+      for (var x = 0; x < w; x++){
+        var m = 255;
+        for (var k = -r; k <= r; k++){
+          var xx = x + k;
+          if (xx < 0 || xx >= w) continue;
+          var v = a[row + xx];
+          if (v < m) m = v;
+        }
+        tmp[row + x] = m;
+      }
+    }
+    var out = new Uint8Array(w * h);
+    for (var x2 = 0; x2 < w; x2++){
+      for (var y2 = 0; y2 < h; y2++){
+        var m2 = 255;
+        for (var k2 = -r; k2 <= r; k2++){
+          var yy = y2 + k2;
+          if (yy < 0 || yy >= h) continue;
+          var v2 = tmp[yy * w + x2];
+          if (v2 < m2) m2 = v2;
+        }
+        out[y2 * w + x2] = m2;
+      }
+    }
+    return out;
+  }
+
+  // Separabler 3×3-Boxfilter nur auf dem Alphakanal: glättet Treppenkanten.
+  function blurAlpha(a, w, h){
+    var tmp = new Uint8Array(w * h);
+    for (var y = 0; y < h; y++){
+      var row = y * w;
+      for (var x = 0; x < w; x++){
+        var sum = 0, n = 0;
+        for (var k = -1; k <= 1; k++){
+          var xx = x + k;
+          if (xx < 0 || xx >= w) continue;
+          sum += a[row + xx]; n++;
+        }
+        tmp[row + x] = (sum / n) | 0;
+      }
+    }
+    var out = new Uint8Array(w * h);
+    for (var x2 = 0; x2 < w; x2++){
+      for (var y2 = 0; y2 < h; y2++){
+        var sum2 = 0, n2 = 0;
+        for (var k2 = -1; k2 <= 1; k2++){
+          var yy = y2 + k2;
+          if (yy < 0 || yy >= h) continue;
+          sum2 += tmp[yy * w + x2]; n2++;
+        }
+        out[y2 * w + x2] = (sum2 / n2) | 0;
+      }
+    }
+    return out;
+  }
+
+  function drawPreview(){
+    if (!state) return;
+    var src = state.canvas;
+    var maxW = 900, maxH = 480;
+    var f = Math.min(1, maxW / src.width, maxH / src.height);
+    previewCanvas.width = Math.max(1, Math.round(src.width * f));
+    previewCanvas.height = Math.max(1, Math.round(src.height * f));
+    var ctx = previewCanvas.getContext("2d");
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    if (hardenToggle.checked){
+      // Gehärtete Version anzeigen
+      var tmp = hardenedCopy(src);
+      ctx.drawImage(tmp, 0, 0, previewCanvas.width, previewCanvas.height);
+    } else {
+      ctx.drawImage(src, 0, 0, previewCanvas.width, previewCanvas.height);
+    }
+  }
+
+  function hardenedCopy(srcCanvas){
+    var c = document.createElement("canvas");
+    c.width = srcCanvas.width; c.height = srcCanvas.height;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(srcCanvas, 0, 0);
+    var img = ctx.getImageData(0, 0, c.width, c.height);
+    var d = img.data;
+    for (var i = 3; i < d.length; i += 4){
+      var a = d[i];
+      if (a > 0 && a < 255) d[i] = a < 128 ? 0 : 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  // ---------- Prüfliste + Größen ----------
+  function updateAll(){
+    if (!state) return;
+    var wCm = parseFloat(String(widthInput.value).replace(",", "."));
+    var valid = isFinite(wCm) && wCm > 0;
+    var ratio = state.height / state.width;
+    var hCm = valid ? wCm * ratio : null;
+    heightOut.textContent = valid ? "Höhe: " + fmt(hCm) + " cm" : "Höhe: –";
+
+    var checks = [];
+
+    // 1. Auflösung
+    var maxWcm = state.width / 300 * 2.54;
+    var maxHcm = state.height / 300 * 2.54;
+    var resText = "Bei 300 DPI druckbar bis " + fmt(maxWcm) + " × " + fmt(maxHcm) + " cm.";
+    if (valid){
+      var effDpi = state.width / (wCm / 2.54);
+      if (effDpi >= 300){
+        checks.push(["ok", "Auflösung reicht", resText + " Bei " + fmt(wCm) + " cm Breite: " + Math.round(effDpi) + " DPI."]);
+      } else if (effDpi >= 200){
+        checks.push(["warn", "Auflösung knapp", resText + " Bei " + fmt(wCm) + " cm Breite nur " + Math.round(effDpi) + " DPI (unter 300). Feine Details können weich werden."]);
+      } else {
+        checks.push(["err", "Auflösung zu niedrig", resText + " Bei " + fmt(wCm) + " cm Breite nur " + Math.round(effDpi) + " DPI. Deutlicher Qualitätsverlust wahrscheinlich."]);
+      }
+    } else {
+      checks.push(["warn", "Zielbreite fehlt", resText + " Bitte eine Druckbreite eingeben."]);
+    }
+
+    // 2. Transparenz
+    if (state.hasAlpha){
+      checks.push(["ok", "Transparenter Hintergrund vorhanden",
+        removeWhiteToggle.checked
+          ? "Die Datei enthält transparente Bereiche (weißer Hintergrund wurde entfernt)."
+          : "Die Datei enthält transparente Bereiche."]);
+    } else {
+      checks.push(["err", "Kein transparenter Hintergrund erkannt",
+        (state.isPdf
+          ? "Die PDF-Seite ist vollflächig deckend (z. B. weißer Hintergrund). "
+          : "Die PNG hat keinen genutzten Alphakanal. ")
+        + "Im DTF-Druck würde die ganze Fläche gedruckt. „Automatisch optimieren“ oder die Option „Hintergrund entfernen“ nutzen."]);
+    }
+
+    // 3. Halbtransparenz
+    var pct = state.semiShare * 100;
+    var pctText = state.semiCount.toLocaleString("de-DE") + " Pixel (" + (pct < 0.01 && pct > 0 ? "<0,01" : pct.toFixed(2).replace(".", ",")) + " %) mit Alpha zwischen 1 und 254.";
+    if (hardenToggle.checked && state.semiCount > 0){
+      checks.push(["ok", "Halbtransparenz wird gehärtet", pctText + " Beim Export wird Alpha unter 128 auf 0 und ab 128 auf 255 gesetzt."]);
+    } else if (pct === 0){
+      checks.push(["ok", "Keine halbtransparenten Pixel", "Alle Pixel sind voll deckend oder voll transparent."]);
+    } else if (pct < 2){
+      checks.push(["warn", "Wenige halbtransparente Pixel", pctText + " Meist nur Kantenglättung, im DTF-Druck aber ggf. sichtbar. Option „Halbtransparenz härten“ prüfen."]);
+    } else {
+      checks.push(["err", "Viele halbtransparente Pixel", pctText + " Halbtransparente Flächen wirken im DTF-Druck fleckig. Option „Halbtransparenz härten“ nutzen oder Motiv überarbeiten."]);
+    }
+
+    // 4. Farbmodus
+    checks.push(["ok", "Farbmodus RGB", "Der Export erfolgt als RGB-PNG. Die CMYK+Weiß-Trennung übernimmt die RIP-Software des Druckers."]);
+
+    // 5. Hochskalierung (nur wenn relevant)
+    if (valid){
+      var targetPx = Math.round(wCm / 2.54 * 300);
+      if (targetPx > state.width * 1.2){
+        checks.push(["warn", "Hochskalierung über 120 %",
+          "Zielbreite " + targetPx + " px, Original " + state.width + " px (" + Math.round(targetPx / state.width * 100) + " %). Export ist möglich, Qualitätsverlust wahrscheinlich."]);
+      }
+    }
+
+    renderChecks(checks);
+    updateExportNote(valid, wCm);
+  }
+
+  function renderChecks(items){
+    checksEl.innerHTML = "";
+    items.forEach(function(it){
+      var li = document.createElement("li");
+      li.className = it[0];
+      var dot = document.createElement("span");
+      dot.className = "dot";
+      var txt = document.createElement("span");
+      var b = document.createElement("b");
+      b.textContent = it[1];
+      txt.appendChild(b);
+      txt.appendChild(document.createTextNode(it[2]));
+      li.appendChild(dot); li.appendChild(txt);
+      checksEl.appendChild(li);
+    });
+  }
+
+  function updateExportNote(valid, wCm){
+    if (!state) return;
+    if (!valid){
+      exportNote.className = "export-note";
+      exportNote.textContent = "Bitte zuerst eine gültige Druckbreite eingeben.";
+      setExportEnabled(false);
+      return;
+    }
+    setExportEnabled(true);
+    var targetW = Math.round(wCm / 2.54 * 300);
+    var targetH = Math.round(wCm * (state.height / state.width) / 2.54 * 300);
+    if (targetW > state.width * 1.2){
+      exportNote.className = "export-note warn";
+      exportNote.textContent = "Achtung: Hochskalierung auf " + targetW + " × " + targetH + " px (über 120 % des Originals). Export erlaubt, Qualitätsverlust möglich.";
+    } else {
+      exportNote.className = "export-note";
+      exportNote.textContent = "Export: " + targetW + " × " + targetH + " px, 300 DPI (pHYs = 11811 Pixel/Meter), Datei „" + state.baseName + "_dtf_300dpi.png“.";
+    }
+  }
+
+  widthInput.addEventListener("input", function(){
+    if (state) state.widthAuto = false;
+    updateAll();
+  });
+  hardenToggle.addEventListener("change", function(){ drawPreview(); updateAll(); updateProcStatus(); });
+  removeWhiteToggle.addEventListener("change", function(){
+    tolRow.hidden = !removeWhiteToggle.checked;
+    reprocess();
+  });
+  var tolTimer = null;
+  tolInput.addEventListener("input", function(){
+    tolVal.textContent = tolInput.value;
+    if (!removeWhiteToggle.checked) return;
+    clearTimeout(tolTimer);
+    tolTimer = setTimeout(reprocess, 250); // erst neu rechnen, wenn der Regler kurz stillsteht
+  });
+  edgeToggle.addEventListener("change", function(){
+    edgeRow.hidden = !edgeToggle.checked;
+    reprocess();
+  });
+  vectorToggle.addEventListener("change", reprocess);
+  trimToggle.addEventListener("change", reprocess);
+
+  // ---------- Auto-Optimierung ----------
+  var autoBtn = document.getElementById("autoBtn");
+  autoBtn.addEventListener("click", autoOptimize);
+
+  function autoOptimize(){
+    if (!state) return;
+    clearError();
+    var orig = state.original;
+    var w = orig.width, h = orig.height;
+    var data;
+    try {
+      data = orig.getContext("2d").getImageData(0, 0, w, h).data;
+    } catch(e){
+      showError("Die Bilddaten konnten nicht ausgelesen werden.");
+      return;
+    }
+
+    // Halbtransparenz direkt am Original messen (Stats können noch fehlen)
+    var semi = 0;
+    for (var si = 3; si < data.length; si += 4){
+      var av = data[si];
+      if (av > 0 && av < 255) semi++;
+    }
+    var semiShare = semi / (w * h);
+
+    // 1) Randanalyse: deckender, einfarbiger Rand → Hintergrund entfernen mit dieser Farbe
+    var border = [];
+    var step = Math.max(1, Math.floor(Math.max(w, h) / 400));
+    function pushPx(x, y){
+      var p = (y * w + x) * 4;
+      border.push([data[p], data[p+1], data[p+2], data[p+3]]);
+    }
+    for (var x = 0; x < w; x += step){ pushPx(x, 0); pushPx(x, h - 1); }
+    for (var y = 0; y < h; y += step){ pushPx(0, y); pushPx(w - 1, y); }
+
+    var opaque = border.filter(function(px){ return px[3] > 200; });
+    var doRemove = false, bgColor = null;
+    if (opaque.length >= border.length * 0.6){
+      var sr = 0, sg = 0, sb = 0;
+      opaque.forEach(function(px){ sr += px[0]; sg += px[1]; sb += px[2]; });
+      var avg = [Math.round(sr / opaque.length), Math.round(sg / opaque.length), Math.round(sb / opaque.length)];
+      var uniform = opaque.filter(function(px){
+        return Math.abs(px[0] - avg[0]) <= 40 && Math.abs(px[1] - avg[1]) <= 40 && Math.abs(px[2] - avg[2]) <= 40;
+      }).length / opaque.length;
+      if (uniform >= 0.8){ doRemove = true; bgColor = avg; }
+    }
+    removeWhiteToggle.checked = doRemove;
+    tolRow.hidden = !doRemove;
+    if (doRemove){ tolInput.value = 30; tolVal.textContent = "30"; state.bgColor = bgColor; }
+    else { state.bgColor = null; }
+
+    // 2) Kantenbereinigung nur, wenn ein Hintergrund abgeschnitten wird
+    edgeToggle.checked = doRemove;
+    edgeRow.hidden = !doRemove;
+    if (doRemove){ edgeInput.value = 1; edgeVal.textContent = "1"; }
+
+    // 3) Logo-Glättung bleibt in der Automatik AUS: Tests mit echten Dateien haben gezeigt,
+    // dass der Raster-Weg (skalieren + Kantenglättung + Härten) verlässlicher ist.
+    // Vektorisieren bleibt als manuelle Option unter "Einstellungen anpassen" verfügbar.
+    vectorToggle.checked = false;
+
+    // 4) Härten bei nennenswerter Halbtransparenz; Zuschnitt immer an
+    hardenToggle.checked = semiShare > 0.005;
+    trimToggle.checked = true;
+
+    reprocess();
+  }
+
+  // Probe: Motiv verkleinert vektorisieren, zurückrendern und mit dem Original vergleichen.
+  // Logos/Grafiken weichen kaum ab, Fotos deutlich.
+  function testVectorFit(src){
+    if (!window.ImageTracer) return Promise.resolve(false);
+    try {
+      var f = Math.min(1, 220 / Math.max(src.width, src.height));
+      var tw = Math.max(1, Math.round(src.width * f));
+      var th = Math.max(1, Math.round(src.height * f));
+      var tc = document.createElement("canvas");
+      tc.width = tw; tc.height = th;
+      var tctx = tc.getContext("2d");
+      tctx.imageSmoothingQuality = "high";
+      tctx.drawImage(src, 0, 0, tw, th);
+      tc = stripRenderedBg(tc); // gleiche Behandlung wie die Probe, sonst hinkt der Vergleich
+      tctx = tc.getContext("2d");
+      var idata = tctx.getImageData(0, 0, tw, th);
+      var dd = idata.data;
+      for (var ci = 3; ci < dd.length; ci += 4){
+        if (dd[ci] < 40) dd[ci] = 0;
+      }
+      var ref = dd;
+      var svg = ImageTracer.imagedataToSVG(idata, {
+        numberofcolors: 24, pathomit: 4, ltres: 0.8, qtres: 0.8,
+        strokewidth: 0, roundcoords: 1, viewbox: true, desc: false
+      });
+      return renderSvgToCanvas(svg, tw, th).then(function(canvas){
+        var got = canvas.getContext("2d").getImageData(0, 0, tw, th).data;
+        var n = 0, alphaMiss = 0, colorSum = 0, colorN = 0;
+        for (var i = 0; i < ref.length; i += 4){
+          var a1 = ref[i+3] > 128, a2 = got[i+3] > 128;
+          if (!a1 && !a2) continue;
+          n++;
+          if (a1 !== a2){ alphaMiss++; continue; }
+          colorSum += (Math.abs(ref[i] - got[i]) + Math.abs(ref[i+1] - got[i+1]) + Math.abs(ref[i+2] - got[i+2])) / 3;
+          colorN++;
+        }
+        if (n === 0) return false;
+        var alphaShare = alphaMiss / n;
+        var meanColor = colorN > 0 ? colorSum / colorN : 999;
+        return alphaShare < 0.06 && meanColor < 30;
+      }).catch(function(){ return false; });
+    } catch(e){
+      return Promise.resolve(false);
+    }
+  }
+  var edgeTimer = null;
+  edgeInput.addEventListener("input", function(){
+    edgeVal.textContent = edgeInput.value;
+    if (!edgeToggle.checked) return;
+    clearTimeout(edgeTimer);
+    edgeTimer = setTimeout(reprocess, 250);
+  });
+
+  // ---------- Export ----------
+  // Liefert (als Promise) die bereinigte, skalierte Zielgrafik oder null (mit Fehlermeldung).
+  function buildExportCanvas(){
+    if (!state) return Promise.resolve(null);
+    var wCm = parseFloat(String(widthInput.value).replace(",", "."));
+    if (!isFinite(wCm) || wCm <= 0){ showError("Bitte eine gültige Druckbreite eingeben."); return Promise.resolve(null); }
+    clearError();
+
+    var hCm = wCm * (state.height / state.width);
+    var targetW = Math.round(wCm / 2.54 * 300);
+    var targetH = Math.round(hCm / 2.54 * 300);
+    if (targetW < 1 || targetH < 1){ showError("Zielgröße ist zu klein."); return Promise.resolve(null); }
+    if (targetW > 20000 || targetH > 20000){
+      showError("Zielgröße über 20.000 px pro Seite wird vom Browser nicht zuverlässig unterstützt. Bitte kleinere Breite wählen.");
+      return Promise.resolve(null);
+    }
+
+    function harden(canvas){
+      if (!hardenToggle.checked) return canvas;
+      var ctx = canvas.getContext("2d");
+      var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var d = img.data;
+      for (var i = 3; i < d.length; i += 4){
+        var a = d[i];
+        if (a > 0 && a < 255) d[i] = a < 128 ? 0 : 255;
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas;
+    }
+
+    // Mit aktiver Logo-Glättung: Vektorform direkt in Zielauflösung rendern (glatte Kanten in jeder Größe)
+    if (vectorToggle.checked && state.vectorSvg){
+      return renderSvgToCanvas(state.vectorSvg, targetW, targetH).then(function(out){
+        return { canvas: harden(out), wCm: wCm, hCm: hCm, targetW: targetW, targetH: targetH };
+      }).catch(function(){
+        showError("Das Rendern der Vektorform ist fehlgeschlagen.");
+        return null;
+      });
+    }
+
+    // Sonst: Pixelbild skalieren, Alphakante glätten, dann ggf. härten (liefert glatte Konturen)
+    var out = document.createElement("canvas");
+    out.width = targetW; out.height = targetH;
+    var ctx = out.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(state.canvas, 0, 0, targetW, targetH);
+    if (hardenToggle.checked){
+      var img = ctx.getImageData(0, 0, targetW, targetH);
+      var d = img.data;
+      var aArr = new Uint8Array(targetW * targetH);
+      for (var ai = 0; ai < aArr.length; ai++) aArr[ai] = d[ai * 4 + 3];
+      aArr = blurAlpha(aArr, targetW, targetH); // glättet die Kontur vor dem Schwellenschnitt
+      for (var aj = 0; aj < aArr.length; aj++) d[aj * 4 + 3] = aArr[aj] < 128 ? 0 : 255;
+      ctx.putImageData(img, 0, 0);
+    }
+    return Promise.resolve({ canvas: out, wCm: wCm, hCm: hCm, targetW: targetW, targetH: targetH });
+  }
+
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+  }
+
+  exportBtn.addEventListener("click", function(){
+    buildExportCanvas().then(function(res){
+      if (!res) return;
+      res.canvas.toBlob(function(blob){
+        if (!blob){ showError("Die PNG konnte nicht erzeugt werden (zu wenig Speicher?)."); return; }
+        blob.arrayBuffer().then(function(buf){
+          var withDpi = injectPhys(new Uint8Array(buf), 11811);
+          downloadBlob(new Blob([withDpi], { type: "image/png" }), state.baseName + "_dtf_300dpi.png");
+        }).catch(function(){
+          showError("Die Metadaten konnten nicht geschrieben werden.");
+        });
+      }, "image/png");
+    });
+  });
+
+  // SVG: Pixelbild nachzeichnen (ImageTracer), Größe in mm setzen.
+  exportSvgBtn.addEventListener("click", function(){
+    if (!window.ImageTracer){
+      showError("Die Vektorisierungs-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und Seite neu laden.");
+      return;
+    }
+    if (!state) return;
+    var wCm = parseFloat(String(widthInput.value).replace(",", "."));
+    if (!isFinite(wCm) || wCm <= 0){ showError("Bitte eine gültige Druckbreite eingeben."); return; }
+    clearError();
+    var hCm = wCm * (state.height / state.width);
+
+    // Nachzeichnen auf max. 1400 px Kantenlänge, sonst wird das Tracing sehr langsam.
+    var src = hardenToggle.checked ? hardenedCopy(state.canvas) : state.canvas;
+    var f = Math.min(1, 1400 / Math.max(src.width, src.height));
+    var tw = Math.max(1, Math.round(src.width * f));
+    var th = Math.max(1, Math.round(src.height * f));
+    var tc = document.createElement("canvas");
+    tc.width = tw; tc.height = th;
+    var tctx = tc.getContext("2d");
+    tctx.imageSmoothingQuality = "high";
+    tctx.drawImage(src, 0, 0, tw, th);
+    var imgData = tctx.getImageData(0, 0, tw, th);
+
+    var prevLabel = exportSvgBtn.textContent;
+    exportSvgBtn.disabled = true;
+    exportSvgBtn.textContent = "Zeichne nach…";
+
+    // Kurz warten, damit der Button-Text gerendert wird, bevor das Tracing den Thread blockiert.
+    setTimeout(function(){
+      try {
+        var svgStr = ImageTracer.imagedataToSVG(imgData, {
+          numberofcolors: 24, pathomit: 8, ltres: 1, qtres: 1,
+          strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
+        });
+        // Physische Größe in mm eintragen, damit Grafik- und Schneidprogramme die cm-Maße übernehmen.
+        var wMm = (wCm * 10).toFixed(2), hMm = (hCm * 10).toFixed(2);
+        svgStr = svgStr.replace("<svg ", '<svg width="' + wMm + 'mm" height="' + hMm + 'mm" ');
+        downloadBlob(new Blob([svgStr], { type: "image/svg+xml" }), state.baseName + "_dtf.svg");
+      } catch(e){
+        showError("Die Vektorisierung ist fehlgeschlagen: " + (e && e.message ? e.message : "unbekannter Fehler"));
+      } finally {
+        exportSvgBtn.textContent = prevLabel;
+        exportSvgBtn.disabled = false;
+      }
+    }, 30);
+  });
+
+  // PDF: bereinigte PNG in eine Seite mit exakter cm-Größe einbetten.
+  exportPdfBtn.addEventListener("click", function(){
+    if (!window.jspdf || !window.jspdf.jsPDF){
+      showError("Die PDF-Bibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen und Seite neu laden.");
+      return;
+    }
+    buildExportCanvas().then(function(res){
+      if (!res) return;
+      try {
+        var wMm = res.wCm * 10, hMm = res.hCm * 10;
+        var doc = new window.jspdf.jsPDF({
+          unit: "mm",
+          format: [wMm, hMm],
+          orientation: wMm >= hMm ? "landscape" : "portrait",
+          compress: true
+        });
+        doc.addImage(res.canvas.toDataURL("image/png"), "PNG", 0, 0, wMm, hMm);
+        downloadBlob(doc.output("blob"), state.baseName + "_dtf_300dpi.pdf");
+      } catch(e){
+        showError("Die PDF konnte nicht erzeugt werden: " + (e && e.message ? e.message : "unbekannter Fehler"));
+      }
+    });
+  });
+
+  // pHYs-Chunk (300 DPI = 11811 Pixel/Meter) direkt nach IHDR einfügen.
+  // Vorhandene pHYs-Chunks werden entfernt.
+  function injectPhys(png, ppm){
+    // PNG-Signatur prüfen
+    var sig = [137,80,78,71,13,10,26,10];
+    for (var s = 0; s < 8; s++){
+      if (png[s] !== sig[s]) throw new Error("Keine gültige PNG");
+    }
+    // Chunks einsammeln, pHYs verwerfen
+    var chunks = [];
+    var pos = 8;
+    while (pos < png.length){
+      var len = readU32(png, pos);
+      var type = String.fromCharCode(png[pos+4], png[pos+5], png[pos+6], png[pos+7]);
+      var end = pos + 12 + len;
+      if (type !== "pHYs") chunks.push(png.subarray(pos, end));
+      pos = end;
+      if (type === "IEND") break;
+    }
+    // pHYs bauen: 9 Datenbytes + Länge + Typ + CRC
+    var data = new Uint8Array(9);
+    writeU32(data, 0, ppm);
+    writeU32(data, 4, ppm);
+    data[8] = 1; // Einheit: Meter
+    var typeBytes = [112,72,89,115]; // "pHYs"
+    var crcInput = new Uint8Array(13);
+    crcInput.set(typeBytes, 0);
+    crcInput.set(data, 4);
+    var phys = new Uint8Array(21);
+    writeU32(phys, 0, 9);
+    phys.set(typeBytes, 4);
+    phys.set(data, 8);
+    writeU32(phys, 17, crc32(crcInput));
+
+    // Zusammensetzen: Signatur, IHDR, pHYs, Rest
+    var totalLen = 8 + 21;
+    chunks.forEach(function(c){ totalLen += c.length; });
+    var outArr = new Uint8Array(totalLen);
+    outArr.set(sig, 0);
+    var o = 8;
+    outArr.set(chunks[0], o); o += chunks[0].length; // IHDR ist immer der erste Chunk
+    outArr.set(phys, o); o += 21;
+    for (var c = 1; c < chunks.length; c++){
+      outArr.set(chunks[c], o); o += chunks[c].length;
+    }
+    return outArr;
+  }
+
+  function readU32(arr, i){
+    return ((arr[i] << 24) | (arr[i+1] << 16) | (arr[i+2] << 8) | arr[i+3]) >>> 0;
+  }
+  function writeU32(arr, i, v){
+    arr[i] = (v >>> 24) & 255; arr[i+1] = (v >>> 16) & 255;
+    arr[i+2] = (v >>> 8) & 255; arr[i+3] = v & 255;
+  }
+
+  var crcTable = (function(){
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++){
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(bytes){
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  // ---------- Hilfen ----------
+  function fmt(v){ return (Math.round(v * 10) / 10).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  function formatBytes(b){
+    if (!isFinite(b)) return "";
+    if (b < 1024) return b + " B";
+    if (b < 1048576) return (b / 1024).toFixed(0) + " KB";
+    return (b / 1048576).toFixed(1) + " MB";
+  }
+  function escapeHtml(s){
+    return s.replace(/[&<>"]/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[c];
+    });
+  }
+})();
+</script>
+</body>
+</html>
