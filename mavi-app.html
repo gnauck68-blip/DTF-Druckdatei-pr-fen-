@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAVI DTF Druckdaten Generator</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #f4f6f8; color: #202124; margin: 0; }
+        .card { background: #ffffff; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-width: 500px; margin: auto; }
+        h2 { color: #1a73e8; margin-top: 0; text-align: center; font-size: 22px; }
+        .subtitle { text-align: center; font-size: 13px; color: #5f6368; margin-top: -10px; margin-bottom: 20px; }
+        label { font-weight: 600; display: block; margin-top: 16px; font-size: 14px; }
+        select, input, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: 1px solid #dadce0; box-sizing: border-box; font-size: 14px; background: #fff; }
+        button { background: #1a73e8; color: white; border: none; font-weight: bold; margin-top: 24px; cursor: pointer; font-size: 16px; transition: background 0.2s; }
+        button:active { background: #1557b0; }
+        .info { font-size: 12px; color: #5f6368; margin-top: 4px; }
+        .checkbox-container { display: flex; align-items: center; margin-top: 16px; }
+        .checkbox-container input { width: auto; margin: 0 10px 0 0; }
+        .mavi-badge { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="text-align: center;"><span class="mavi-badge">MAVI GUIDE KONFORM</span></div>
+        <h2>MAVI DTF Druckdaten Generator</h2>
+        <div class="subtitle">Erstelle perfekte 300 DPI Transfers im Hochformat</div>
+        
+        <label for="format">Druckbogen Format wählen:</label>
+        <select id="format">
+            <option value="560x500">Halber Meter (56 x 50 cm / 6614 x 5906 px)</option>
+            <option value="560x1000" selected>Meterware (56 x 100 cm / 6614 x 11811 px)</option>
+            <option value="760x2000">XXL DTF (76 x 200 cm / 8976 x 23622 px)</option>
+        </select>
+        <div class="info">Druckdaten werden zwingend im Hochformat und mit 300 DPI angelegt.</div>
+
+        <label for="imageInput">Motiv hochladen (PNG / JPG):</label>
+        <input type="file" id="imageInput" accept="image/png, image/jpeg">
+
+        <div class="checkbox-container">
+            <input type="checkbox" id="removeBg" checked>
+            <label for="removeBg" style="margin:0; font-weight:normal;">Weißen Hintergrund automatisch entfernen</label>
+        </div>
+
+        <button onclick="processAndDownload()">Perfekte DTF-Druckdatei generieren</button>
+    </div>
+
+    <script>
+        function processAndDownload() {
+            const input = document.getElementById('imageInput');
+            if (!input.files[0]) { 
+                alert('Bitte wähle zuerst eine Bilddatei aus.'); 
+                return; 
+            }
+
+            const formatVal = document.getElementById('format').value.split('x');
+            const targetWidthPx = formatVal[0] === '560' ? 6614 : 8976;
+            const targetHeightPx = formatVal[1] === '500' ? 5906 : (formatVal[1] === '1000' ? 11811 : 23622);
+
+            const img = new Image();
+            img.src = URL.createObjectURL(input.files[0]);
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidthPx;
+                canvas.height = targetHeightPx;
+                const ctx = canvas.getContext('2d');
+
+                // Transparenter Hintergrund gemäß MAVI Vorgabe
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Bild verarbeiten
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(img, 0, 0);
+
+                if (document.getElementById('removeBg').checked) {
+                    const imgData = tempCtx.getImageData(0, 0, img.width, img.height);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        if (data[i] > 230 && data[i+1] > 230 && data[i+2] > 230) {
+                            data[i+3] = 0; // Transparenz
+                        }
+                    }
+                    tempCtx.putImageData(imgData, 0, 0);
+                }
+
+                // 0,5 cm Sicherheitsabstand = 118 Pixel bei 300 DPI
+                const margin = 118;
+                ctx.drawImage(tempCanvas, margin, margin);
+
+                // Export als PNG mit voller Transparenz
+                const link = document.createElement('a');
+                link.download = 'mavi_dtf_druckbogen_300dpi.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+        }
+    </script>
+</body>
+</html>
