@@ -65,7 +65,7 @@ header p{margin:0;color:var(--muted);font-size:.9rem;max-width:56ch}
   background-size:18px 18px;background-position:0 0,9px 9px;background-color:#f4f5f3;
 }
 #stage{position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;min-height:200px;display:flex;align-items:center;justify-content:center}
-#preview{max-width:100%;height:auto;display:block}
+#preview{max-width:100%;height:auto;display:block;cursor:crosshair;touch-action:manipulation}
 
 .facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-top:12px}
 .fact{background:var(--panel);padding:10px 12px}
@@ -144,7 +144,7 @@ footer{margin-top:28px;font-size:.78rem;color:var(--muted);line-height:1.6}
 
   <div id="viewCard" class="card hide" style="margin-top:14px">
     <h2>Vorschau</h2>
-    <div id="stage" class="checker"><canvas id="preview"></canvas></div>
+    <div id="stage" class="checker"><canvas id="preview" title="Auf Hintergrundreste tippen"></canvas></div>
     <dl class="facts">
       <div class="fact"><dt>Original</dt><dd id="fOrig">–</dd></div>
       <div class="fact"><dt>Motiv nach Zuschnitt</dt><dd id="fCrop">–</dd></div>
@@ -166,8 +166,20 @@ footer{margin-top:28px;font-size:.78rem;color:var(--muted);line-height:1.6}
     <div class="field"><label for="tol">Toleranz <span id="tolV">32</span></label><input type="range" id="tol" min="4" max="120" value="32"></div>
     <label class="row"><input type="checkbox" id="optHoles"> Auch Flächen im Motiv entfernen</label>
     <div class="sub">Für Innenräume von e, a, R, 8. Löscht aber auch gewollte Flächen in dieser Farbe.</div>
+    <label class="row"><input type="checkbox" id="optClean" checked> Reste entfernen</label>
+    <div class="sub">Löscht kleine übrig gebliebene Hintergrundinseln, die nirgends am Motiv hängen.</div>
     <label class="row"><input type="checkbox" id="optHard" checked> Kanten hart machen</label>
-    <div class="sub">Kein halbtransparenter Rand mehr. Für DTF-Film sinnvoll, der RIP erzeugt die Weißplatte aus dem Alphakanal.</div>
+    <div class="sub">Kein halbtransparenter Rand mehr. Für DTF-Film sinnvoll, der RIP erzeugt die Weißplatte aus dem Alphakanal. Bei Fotos mit weichen Übergängen besser aus.</div>
+    <p class="note" style="margin-top:12px">Bleiben Reste stehen: in der Vorschau oben direkt auf den Rest tippen. Jeder Tipper entfernt diese Fläche.</p>
+    <button class="act ghost" id="btnUndoSeed" style="margin-top:8px" disabled>Letzten Tipper zurücknehmen</button>
+  </div>
+
+  <div class="card">
+    <h2>Foto freistellen mit KI</h2>
+    <p class="note" style="margin:0 0 10px">Für Fotos mit Wand, Schatten oder Verlauf. Erkennt das Motiv selbst statt über Farben. Lädt beim ersten Mal ein Modell aus dem Netz, danach geht es schneller.</p>
+    <button class="act ghost" id="btnAi">Motiv per KI freistellen</button>
+    <button class="act ghost" id="btnUndoAi" disabled>Zurück zum Original</button>
+    <div id="aiInfo" class="alert g hide"></div>
   </div>
 
   <div class="card">
@@ -1434,7 +1446,7 @@ if(typeof define === 'function' && define.amd){
 var $ = function(s){ return document.querySelector(s); };
 
 var S = {
-  name:'motiv', isSvg:false, svgText:null,
+  name:'motiv', isSvg:false, svgText:null, rawSrc:null, seeds:[], cropX:0, cropY:0, ai:false,
   src:null,      // ImageData, Originalauflösung
   base:null,     // ImageData nach Freistellen + Zuschnitt
   traced:null,   // {td, w, h}
@@ -1491,31 +1503,90 @@ function dist(p,q){
   var r=p[0]-q[0], g=p[1]-q[1], b=p[2]-q[2];
   return Math.sqrt(r*r+g*g+b*b);
 }
-function removeBg(id, tol, alsoInside){
+function removeBg(id, tol, alsoInside, seeds){
   var w=id.width, h=id.height, d=id.data;
-  var bg=pickBg(d,w,h);
-  if(bg[3]<10) return;                       // Rand ist schon transparent
+  var localT=Math.max(5, tol*0.30);      // Sprung von Pixel zu Pixel: sperrt harte Kanten
+  var globalT=Math.max(60, tol*6);       // Notbremse gegen Weglaufen ins Motiv
   var seen=new Uint8Array(w*h);
+  var ref=new Uint8Array(w*h);
   var stack=new Int32Array(w*h), sp=0;
-  var push=function(x,y){
+  var cols=[];
+
+  function seedCol(x,y){ var i=(y*w+x)*4; return [d[i],d[i+1],d[i+2],d[i+3]]; }
+  function push(x,y,from,ri){
     if(x<0||y<0||x>=w||y>=h) return;
     var p=y*w+x; if(seen[p]) return;
     var i=p*4;
-    if(d[i+3]<10){ seen[p]=1; stack[sp++]=p; return; }
-    if(dist([d[i],d[i+1],d[i+2]],bg)>tol) return;
-    seen[p]=1; stack[sp++]=p;
-  };
-  for(var x=0;x<w;x++){ push(x,0); push(x,h-1); }
-  for(var y=0;y<h;y++){ push(0,y); push(w-1,y); }
-  while(sp>0){
-    var p=stack[--sp], px=p%w, py=(p-px)/w;
-    d[p*4+3]=0;
-    push(px+1,py); push(px-1,py); push(px,py+1); push(px,py-1);
+    if(d[i+3]<10){ seen[p]=1; ref[p]=ri; stack[sp++]=p; return; }
+    var cur=[d[i],d[i+1],d[i+2]];
+    if(from && dist(cur,from)>localT) return;
+    if(dist(cur,cols[ri])>globalT) return;
+    seen[p]=1; ref[p]=ri; stack[sp++]=p;
   }
+
+  var useBorder = !seeds || seeds.border;
+  if(useBorder){
+    var bg=pickBg(d,w,h);
+    if(bg[3]>=10){
+      cols.push(bg);
+      for(var x=0;x<w;x++){ push(x,0,null,0); push(x,h-1,null,0); }
+      for(var y=0;y<h;y++){ push(0,y,null,0); push(w-1,y,null,0); }
+    }
+  }
+  var pts = (seeds && seeds.points) || [];
+  for(var n=0;n<pts.length && cols.length<250;n++){
+    var sx=Math.max(0,Math.min(w-1,Math.round(pts[n][0])));
+    var sy=Math.max(0,Math.min(h-1,Math.round(pts[n][1])));
+    var sc=seedCol(sx,sy);
+    if(sc[3]<10) continue;
+    cols.push(sc);
+    push(sx,sy,null,cols.length-1);
+  }
+  if(!cols.length) return;
+
+  while(sp>0){
+    var p=stack[--sp], px=p%w, py=(p-px)/w, j=p*4;
+    var col=[d[j],d[j+1],d[j+2]];
+    d[j+3]=0;
+    var ri=ref[p];
+    push(px+1,py,col,ri); push(px-1,py,col,ri);
+    push(px,py+1,col,ri); push(px,py-1,col,ri);
+  }
+
   if(alsoInside){
     for(var k=0;k<w*h;k++){
-      var j=k*4;
-      if(d[j+3]>0 && dist([d[j],d[j+1],d[j+2]],bg)<=tol) d[j+3]=0;
+      var q=k*4;
+      if(d[q+3]===0) continue;
+      for(var c=0;c<cols.length;c++){
+        if(dist([d[q],d[q+1],d[q+2]],cols[c])<=tol){ d[q+3]=0; break; }
+      }
+    }
+  }
+}
+
+/* ---------- Reste entfernen ---------- */
+function despeckle(id, minPx){
+  var w=id.width,h=id.height,d=id.data,N=w*h;
+  var lab=new Int32Array(N), q=new Int32Array(N), cur=0;
+  for(var s0=0;s0<N;s0++){
+    if(d[s0*4+3]<=16 || lab[s0]) continue;
+    cur++;
+    var head=0,tail=0; q[tail++]=s0; lab[s0]=cur;
+    var members=[];
+    while(head<tail){
+      var p=q[head++]; members.push(p);
+      var x=p%w, y=(p-x)/w;
+      var nb=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]];
+      for(var t=0;t<4;t++){
+        var nx=nb[t][0], ny=nb[t][1];
+        if(nx<0||ny<0||nx>=w||ny>=h) continue;
+        var np=ny*w+nx;
+        if(lab[np] || d[np*4+3]<=16) continue;
+        lab[np]=cur; q[tail++]=np;
+      }
+    }
+    if(members.length<minPx){
+      for(var m=0;m<members.length;m++) d[members[m]*4+3]=0;
     }
   }
 }
@@ -1529,15 +1600,15 @@ function cropAlpha(id, thr){
       if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
     }
   }
-  if(x1<0) return id;
+  if(x1<0) return {img:id,x0:0,y0:0};
   var cw=x1-x0+1, ch=y1-y0+1;
-  if(cw===w && ch===h) return id;
+  if(cw===w && ch===h) return {img:id,x0:0,y0:0};
   var out=mkID(cw,ch);
   for(var yy=0;yy<ch;yy++){
     var s=((yy+y0)*w+x0)*4;
     out.data.set(d.subarray(s,s+cw*4), yy*cw*4);
   }
-  return out;
+  return {img:out,x0:x0,y0:y0};
 }
 
 /* ---------- Kanten hart machen ---------- */
@@ -1879,6 +1950,9 @@ async function handleFile(file){
     cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
     cx.drawImage(img,0,0,w,h);
     S.src=cx.getImageData(0,0,w,h);
+    S.rawSrc=mkID(w,h,S.src.data);
+    S.seeds=[]; S.ai=false;
+    $('#btnUndoAi').disabled=true; hideEl($('#aiInfo'));
     var trans=0, dd=S.src.data;
     for(var i=3;i<dd.length;i+=40) if(dd[i]<250) trans++;
     S.hasAlpha = trans > (dd.length/40)*0.02;
@@ -1899,13 +1973,20 @@ async function refresh(){
   setBusy('Motiv wird vorbereitet…',0.2);
   await nextFrame();
   var id=mkID(S.src.width,S.src.height,S.src.data);
-  if($('#optBg').checked) removeBg(id, parseFloat($('#tol').value), $('#optHoles').checked);
-  S.base = cropAlpha(id,16);
+  var tol=parseFloat($('#tol').value);
+  if($('#optBg').checked || S.seeds.length){
+    removeBg(id, tol, $('#optHoles').checked, {border:$('#optBg').checked, points:S.seeds});
+  }
+  if($('#optClean').checked) despeckle(id, Math.max(24, Math.round(id.width*id.height*0.0004)));
+  var c=cropAlpha(id,16);
+  S.base=c.img; S.cropX=c.x0; S.cropY=c.y0;
   S.traced=null; $('#btnSvg').disabled=true; hideEl($('#traceInfo'));
+  $('#btnUndoSeed').disabled = S.seeds.length===0;
   drawPreview();
   updateFacts();
   setBusy('');
 }
+
 function drawPreview(){
   var b=S.base, cv=$('#preview'), maxW=720;
   var k=Math.min(1, maxW/b.width);
@@ -1992,6 +2073,53 @@ async function doTrace(){
       ' Farben. PDF und SVG kommen ab jetzt als Vektor. Prüfe die Vorschau im PDF, bevor du es in den Druck gibst.');
 }
 
+/* ---------- KI-Freisteller ---------- */
+async function aiCut(){
+  hideEl($('#aiInfo'));
+  var btn=$('#btnAi'); btn.disabled=true;
+  try{
+    var base=S.rawSrc||S.src;
+    var c=idToCanvas(base);
+    var blob=await new Promise(function(r){ c.toBlob(r,'image/png'); });
+    setBusy('KI-Modell wird geladen…',0.05);
+    var mod=await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs');
+    var out=await mod.removeBackground(blob,{
+      model:'isnet_fp16',
+      output:{format:'image/png'},
+      progress:function(key,cur,total){
+        var p = total ? cur/total : null;
+        setBusy(/fetch|download/i.test(key)?'Modell wird geladen…':'KI rechnet…', p);
+      }
+    });
+    setBusy('Ergebnis wird übernommen…',null);
+    var url=URL.createObjectURL(out);
+    var img=await loadImageFrom(url,true);
+    var cc=document.createElement('canvas');
+    cc.width=base.width; cc.height=base.height;
+    var g=cc.getContext('2d',{willReadFrequently:true});
+    g.clearRect(0,0,cc.width,cc.height);
+    g.drawImage(img,0,0,cc.width,cc.height);
+    S.src=g.getImageData(0,0,cc.width,cc.height);
+    S.ai=true; S.seeds=[];
+    $('#optBg').checked=false;
+    $('#btnUndoAi').disabled=false;
+    await refresh();
+    say($('#aiInfo'),'g','Freigestellt. Reste kannst du in der Vorschau antippen. Sitzen die Kanten zu hart, nimm den Haken bei "Kanten hart machen" raus.');
+  }catch(e){
+    setBusy('');
+    say($('#aiInfo'),'e','Die KI-Freistellung ist fehlgeschlagen: '+((e&&e.message)||'unbekannter Fehler')+'. Sie braucht eine Internetverbindung.');
+  }
+  btn.disabled=false;
+}
+function undoAi(){
+  if(!S.rawSrc) return;
+  S.src=mkID(S.rawSrc.width,S.rawSrc.height,S.rawSrc.data);
+  S.ai=false; S.seeds=[];
+  $('#btnUndoAi').disabled=true; hideEl($('#aiInfo'));
+  $('#optBg').checked=true;
+  refresh();
+}
+
 /* ---------- Speichern ---------- */
 async function savePng(){
   hideEl($('#saveInfo'));
@@ -2069,6 +2197,18 @@ function init(){
   $('#tol').addEventListener('change',refresh);
   $('#optBg').addEventListener('change',refresh);
   $('#optHoles').addEventListener('change',refresh);
+  $('#optClean').addEventListener('change',refresh);
+  $('#preview').addEventListener('click',function(e){
+    if(!S.base) return;
+    var cv=$('#preview'), r=cv.getBoundingClientRect();
+    var px=(e.clientX-r.left)/r.width*S.base.width;
+    var py=(e.clientY-r.top)/r.height*S.base.height;
+    S.seeds.push([S.cropX+px, S.cropY+py]);
+    refresh();
+  });
+  $('#btnUndoSeed').addEventListener('click',function(){ S.seeds.pop(); refresh(); });
+  $('#btnAi').addEventListener('click',aiCut);
+  $('#btnUndoAi').addEventListener('click',undoAi);
   $('#optHard').addEventListener('change',function(){ if(S.base) updateFacts(); });
   $('#wcm').addEventListener('input',function(){ if(S.base) updateFacts(); });
   $('#dpi').addEventListener('change',function(){ if(S.base) updateFacts(); });
@@ -2081,7 +2221,8 @@ function init(){
   $('#btnPdf').addEventListener('click',savePdf);
   $('#btnSvg').addEventListener('click',saveSvg);
   $('#btnReset').addEventListener('click',function(){
-    S.src=null; S.base=null; S.traced=null;
+    S.src=null; S.base=null; S.traced=null; S.rawSrc=null; S.seeds=[]; S.ai=false;
+    $('#btnUndoAi').disabled=true; $('#btnUndoSeed').disabled=true; hideEl($('#aiInfo'));
     $('#viewCard').classList.add('hide'); $('#panel').classList.add('hide');
     $('#dropWrap').classList.remove('hide');
     hideEl($('#saveInfo')); hideEl($('#traceInfo')); setBusy('');
