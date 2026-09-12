@@ -312,7 +312,11 @@
   <section class="tab-panel" id="panel-knockout" data-panel="knockout" hidden>
   <p class="tab-intro">Modul 2 – Knockout: entfernt auf Wunsch Schwarz oder eine gewählte Farbe aus dem Motiv. Ändert nur, was ausdrücklich angestoßen wird, und schreibt immer eine neue Datei.</p>
   <div class="error-box" id="koErrorBox" role="alert"></div>
-  <div class="file-meta" id="koSourceNote">Noch keine Datei übernommen. Bitte zuerst im Tab „Datencheck“ eine Datei prüfen (mindestens Gelb) und auf „Weiter zu Knockout“ klicken.</div>
+  <label class="drop" id="koDrop" for="koFileInput">
+    <strong>Datei hierher ziehen</strong> oder tippen zum Auswählen
+    <small>PNG, JPG oder PDF. Kommt auch automatisch hierher, wenn im Tab „Datencheck“ auf „Weiter zu Knockout“ getippt wird — ein direkter Upload hier ist aber genauso möglich.</small>
+    <input type="file" id="koFileInput" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf">
+  </label>
 
   <div class="app" id="koApp">
     <section class="preview-wrap" aria-label="Vorschau">
@@ -2033,7 +2037,8 @@
   "use strict";
 
   var errorBox = document.getElementById("koErrorBox");
-  var sourceNote = document.getElementById("koSourceNote");
+  var drop = document.getElementById("koDrop");
+  var fileInput = document.getElementById("koFileInput");
   var app = document.getElementById("koApp");
   var canvasFilm = document.getElementById("koCanvasFilm");
   var canvasShirt = document.getElementById("koCanvasShirt");
@@ -2163,16 +2168,84 @@
     addTargetColor({ r: d[0], g: d[1], b: d[2] });
   });
 
-  // ---------- Übernahme aus Modul 1 ----------
+  // ---------- Datei übernehmen: entweder per Handoff aus Modul 1, oder direkt hier hochgeladen ----------
+  function adoptCanvas(canvas, name){
+    src = canvas;
+    window.DTFHandoff = { canvas: canvas, name: name, wCm: null };
+    app.classList.add("show");
+    fileMeta.textContent = name + " · " + src.width + " × " + src.height + " px";
+    exportBtn.disabled = false;
+    updatePreview();
+  }
+
   window.addEventListener("dtf-handoff", function(){
     var h = window.DTFHandoff;
     if (!h) return;
-    src = h.canvas;
-    sourceNote.hidden = true; sourceNote.style.display = "none";
-    app.classList.add("show");
-    fileMeta.textContent = h.name + " · " + src.width + " × " + src.height + " px";
-    exportBtn.disabled = false;
-    updatePreview();
+    adoptCanvas(h.canvas, h.name);
+  });
+
+  function loadRasterKO(file){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        if (!img.naturalWidth){ reject(new Error("Bild hat keine Pixelmaße")); return; }
+        var c = document.createElement("canvas");
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext("2d").drawImage(img, 0, 0);
+        resolve(c);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("Datei ist beschädigt oder kein gültiges Bild")); };
+      img.src = url;
+    });
+  }
+
+  function loadPdfKO(file){
+    if (!window.pdfjsLib) return Promise.reject(new Error("PDF-Unterstützung nicht verfügbar"));
+    return file.arrayBuffer().then(function(buf){
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    }).then(function(pdf){ return pdf.getPage(1); }).then(function(page){
+      var scale = 300 / 72;
+      var viewport = page.getViewport({ scale: scale });
+      var MAX = 8000;
+      if (viewport.width > MAX || viewport.height > MAX){
+        var f = Math.min(MAX / viewport.width, MAX / viewport.height);
+        viewport = page.getViewport({ scale: scale * f });
+      }
+      var c = document.createElement("canvas");
+      c.width = Math.round(viewport.width);
+      c.height = Math.round(viewport.height);
+      return page.render({ canvasContext: c.getContext("2d"), viewport: viewport, background: "rgba(0,0,0,0)" })
+        .promise.then(function(){ return c; });
+    });
+  }
+
+  function handleKoFile(file){
+    clearError();
+    var ext = (/\.([a-z0-9]+)$/i.exec(file.name) || [])[1] || "";
+    var isPdf = ext.toLowerCase() === "pdf";
+    var promise = isPdf ? loadPdfKO(file) : loadRasterKO(file);
+    promise.then(function(c){
+      adoptCanvas(c, file.name.replace(/\.[^.]+$/, ""));
+    }).catch(function(err){
+      showError("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : "unbekannter Fehler"));
+    });
+  }
+
+  fileInput.addEventListener("change", function(){
+    if (fileInput.files && fileInput.files[0]) handleKoFile(fileInput.files[0]);
+    fileInput.value = "";
+  });
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleKoFile(f);
   });
 
   // ---------- Rec.709-Helligkeit, HSV-Sättigung, CIELAB ----------
