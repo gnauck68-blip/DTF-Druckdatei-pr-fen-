@@ -125,14 +125,46 @@
   .export-btn.secondary:disabled{background:#fff; color:#c9ced3; border-color:#c9ced3;}
   .export-note{margin:8px 0 0; font-size:.88rem; color:var(--muted);}
   .export-note.warn{color:var(--warn); font-weight:600;}
+
+  .tabs{display:flex; gap:6px; margin-top:16px; border-bottom:1px solid var(--line);}
+  .tab-btn{
+    font:inherit; font-weight:600; font-size:.92rem; color:var(--muted); background:none; border:0;
+    padding:9px 14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab-btn:hover{color:var(--ink);}
+  .tab-btn.active{color:var(--accent); border-bottom-color:var(--accent);}
+  .tab-panel[hidden]{display:none;}
+  .tab-intro{color:var(--muted); max-width:70ch; margin:14px 0 12px;}
+
+  textarea{font:inherit;}
+  select{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:7px;
+    font:inherit; background:#fff;
+  }
+  input[type=text]{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font:inherit;
+  }
+  .swatch{
+    width:32px; height:32px; border-radius:6px; border:1px solid var(--line); cursor:pointer; padding:0;
+  }
+  .swatch.active{outline:2px solid var(--accent); outline-offset:1px;}
+  .ko-panes{display:flex; gap:12px; flex-wrap:wrap;}
+  .ko-pane{flex:1; min-width:220px;}
+  .ko-pane .pane-label{color:var(--muted); font-size:.85rem; margin-bottom:6px;}
 </style>
 </head>
 <body>
 <header>
   <h1>DTF-Druckprüfer <span class="ver">v14</span></h1>
   <p>Datei laden, fertig: Die App entfernt Hintergrund, schneidet zu, glättet Logos und härtet Kanten automatisch. Danach nur noch Druckbreite prüfen und exportieren. Alles läuft lokal im Browser.</p>
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" id="tabBtnRepair" data-tab="repair" role="tab" aria-selected="true">Reparatur</button>
+    <button class="tab-btn" id="tabBtnCheck" data-tab="check" role="tab" aria-selected="false">Datencheck</button>
+    <button class="tab-btn" id="tabBtnKnockout" data-tab="knockout" role="tab" aria-selected="false">Knockout</button>
+  </nav>
 </header>
 <main>
+  <section class="tab-panel" id="panel-repair" data-panel="repair">
   <label class="drop" id="drop" for="fileInput">
     <strong>Datei hierher ziehen</strong> oder tippen zum Auswählen
     <small>PNG, JPG oder PDF (erste Seite wird verwendet). JPG hat nie Transparenz; dafür gibt es die Option „Weißen Hintergrund entfernen“.</small>
@@ -228,6 +260,121 @@
       </div>
     </aside>
   </div>
+  </section>
+
+  <section class="tab-panel" id="panel-check" data-panel="check" hidden>
+  <p class="tab-intro">Modul 1 – Datencheck: prüft und meldet, ändert nichts an der Datei. Ampel je Prüfpunkt nach der DTF-Datencheck-Spec, Abschnitt 4.</p>
+  <label class="drop" id="checkDrop" for="checkFileInput">
+    <strong>Datei hierher ziehen</strong> oder tippen zum Auswählen
+    <small>PNG, JPG, PDF, SVG, AI, EPS, TIFF, BMP, WebP, GIF, HEIC, PSD, Word oder PowerPoint.</small>
+    <input type="file" id="checkFileInput" accept=".png,.jpg,.jpeg,.pdf,.svg,.ai,.eps,.tif,.tiff,.bmp,.webp,.gif,.heic,.heif,.psd,.doc,.docx,.ppt,.pptx">
+  </label>
+  <div class="error-box" id="checkErrorBox" role="alert"></div>
+
+  <div class="app" id="checkApp">
+    <section class="preview-wrap" aria-label="Vorschau">
+      <div class="checker"><canvas id="checkCanvas"></canvas></div>
+      <div class="file-meta" id="checkFileMeta"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>Prüfergebnisse</h2>
+        <ul class="checks" id="checkChecks"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Zielgröße</h2>
+        <div class="size-row">
+          <div class="field">
+            <label for="checkWidthCm">Druckbreite in cm</label>
+            <input type="number" id="checkWidthCm" min="0.1" max="300" step="0.1" inputmode="decimal">
+          </div>
+          <div class="height-out" id="checkHeightOut">Höhe: –</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Kundentext</h2>
+        <button class="export-btn secondary" id="checkTextBtn" style="width:100%;">Text für Kundenmail erzeugen</button>
+        <textarea id="checkTextArea" rows="6" style="width:100%;margin-top:10px;padding:8px;border:1px solid var(--line);border-radius:7px;" readonly placeholder="Erscheint hier, sobald erzeugt."></textarea>
+        <button class="export-btn secondary" id="checkTextCopyBtn" style="width:100%;margin-top:8px;" disabled>In Zwischenablage kopieren</button>
+      </div>
+
+      <div class="card">
+        <button class="export-btn" id="checkToKnockoutBtn" disabled>Weiter zu Knockout →</button>
+        <p class="export-note">Übergibt die Datei an Modul 2 (nur wenn Gesamturteil mindestens Gelb ist).</p>
+      </div>
+    </aside>
+  </div>
+  </section>
+
+  <section class="tab-panel" id="panel-knockout" data-panel="knockout" hidden>
+  <p class="tab-intro">Modul 2 – Knockout: entfernt auf Wunsch Schwarz oder eine gewählte Farbe aus dem Motiv. Ändert nur, was ausdrücklich angestoßen wird, und schreibt immer eine neue Datei.</p>
+  <div class="error-box" id="koErrorBox" role="alert"></div>
+  <label class="drop" id="koDrop" for="koFileInput">
+    <strong>Datei hierher ziehen</strong> oder tippen zum Auswählen
+    <small>PNG, JPG oder PDF. Kommt auch automatisch hierher, wenn im Tab „Datencheck“ auf „Weiter zu Knockout“ getippt wird — ein direkter Upload hier ist aber genauso möglich.</small>
+    <input type="file" id="koFileInput" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf">
+  </label>
+
+  <div class="app" id="koApp">
+    <section class="preview-wrap" aria-label="Vorschau">
+      <div class="ko-panes">
+        <div class="ko-pane">
+          <div class="pane-label">Folie (Schachbrett)</div>
+          <div class="checker"><canvas id="koCanvasFilm"></canvas></div>
+        </div>
+        <div class="ko-pane">
+          <div class="pane-label">Shirt-Vorschau</div>
+          <div class="checker" id="koShirtBg"><canvas id="koCanvasShirt"></canvas></div>
+        </div>
+      </div>
+      <div class="file-meta" id="koFileMeta"></div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>Textilfarbe</h2>
+        <label for="koColorSelect">Gespeicherte Farbe</label>
+        <select id="koColorSelect">
+          <option value="">– eigene Hex-Eingabe –</option>
+        </select>
+        <label for="koColorHex" style="margin-top:10px;">Hex-Wert</label>
+        <input type="text" id="koColorHex" value="#1A1A1A">
+        <button class="export-btn secondary" id="koSaveColorBtn" style="width:100%;margin-top:8px;">Farbe merken</button>
+      </div>
+
+      <div class="card">
+        <h2>Verfahren</h2>
+        <label class="toggle"><input type="radio" name="koMode" id="koModeBlack" value="black" checked><span>Schwarz entfernen</span></label>
+        <label class="toggle"><input type="radio" name="koMode" id="koModeColors" value="colors"><span>Bis zu 4 Farben entfernen</span></label>
+
+        <div id="koBlackControls">
+          <div class="tol-row"><label for="koLWeg">Ab wie dunkel wird weggelassen</label><input type="range" id="koLWeg" min="0" max="255" value="40"><output id="koLWegVal">40</output></div>
+          <div class="tol-row"><label for="koLBleibt">Wie weich ist der Übergang</label><input type="range" id="koLBleibt" min="0" max="255" value="90"><output id="koLBleibtVal">90</output></div>
+          <div class="tol-row"><label for="koSMax">Bunte Farben schützen</label><input type="range" id="koSMax" min="0" max="100" value="25"><output id="koSMaxVal">25</output></div>
+        </div>
+
+        <div id="koColorControls" hidden>
+          <p class="export-note" style="margin:10px 0;">Bis zu 4 Farben in der Folien-Vorschau anklicken oder Hex eingeben.</p>
+          <div id="koColorSwatches" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+          <input type="text" id="koColorHexInput" placeholder="#RRGGBB" style="margin-top:8px;">
+          <button class="export-btn secondary" id="koAddColorBtn" style="width:100%;margin-top:8px;">Farbe hinzufügen</button>
+          <div class="tol-row"><label for="koDeWeg">Trennschärfe (dE weg)</label><input type="range" id="koDeWeg" min="1" max="40" value="8"><output id="koDeWegVal">8</output></div>
+          <div class="tol-row"><label for="koDeBleibt">Weicher Übergang (dE bleibt)</label><input type="range" id="koDeBleibt" min="1" max="60" value="20"><output id="koDeBleibtVal">20</output></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Export</h2>
+        <button class="export-btn" id="koExportBtn" disabled>PNG exportieren (_knockout)</button>
+        <p class="export-note">Schreibt Textilfarbe und Reglerwerte in die PNG-Metadaten (tEXt-Chunk).</p>
+        <p class="file-meta" id="koReportLine" style="margin-top:8px;"></p>
+      </div>
+    </aside>
+  </div>
+  </section>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -1353,6 +1500,965 @@
     return s.replace(/[&<>"]/g, function(c){
       return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[c];
     });
+  }
+})();
+</script>
+
+<script>
+// ---------- Tab-Umschaltung ----------
+(function(){
+  "use strict";
+  var btns = document.querySelectorAll(".tab-btn");
+  btns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var tab = btn.getAttribute("data-tab");
+      btns.forEach(function(b){
+        b.classList.toggle("active", b === btn);
+        b.setAttribute("aria-selected", b === btn ? "true" : "false");
+      });
+      document.querySelectorAll(".tab-panel").forEach(function(p){
+        p.hidden = p.getAttribute("data-panel") !== tab;
+      });
+    });
+  });
+})();
+</script>
+
+<script>
+// ==================== Modul 1: Datencheck (Abschnitt 3-4, 6) ====================
+(function(){
+  "use strict";
+
+  var MM_PER_INCH = 25.4;
+  var MIN_LINE_MM = 0.4; // Vorgabe des Chefs, Abschnitt 4.7
+
+  var drop = document.getElementById("checkDrop");
+  var fileInput = document.getElementById("checkFileInput");
+  var errorBox = document.getElementById("checkErrorBox");
+  var app = document.getElementById("checkApp");
+  var canvas = document.getElementById("checkCanvas");
+  var fileMeta = document.getElementById("checkFileMeta");
+  var checksEl = document.getElementById("checkChecks");
+  var widthInput = document.getElementById("checkWidthCm");
+  var heightOut = document.getElementById("checkHeightOut");
+  var textBtn = document.getElementById("checkTextBtn");
+  var textArea = document.getElementById("checkTextArea");
+  var copyBtn = document.getElementById("checkTextCopyBtn");
+  var toKnockoutBtn = document.getElementById("checkToKnockoutBtn");
+
+  var state = null;
+  // state = { canvas, width, height, name, ext, isVector, sizeBytes,
+  //           hasAlpha, semiShare, semiLowShare, streuCount, minEdgeDistPx,
+  //           thinAnalysisSkipped, thinSpots, overall }
+
+  var FORMAT_TABLE = {
+    svg: ["ok", "Vektor. Auflösung spielt keine Rolle. Prüfen: Sind Schriften in Pfade umgewandelt?"],
+    ai:  ["ok", "Vektor. Auflösung spielt keine Rolle. Prüfen: Sind Schriften in Pfade umgewandelt?"],
+    eps: ["ok", "Vektor. Auflösung spielt keine Rolle. Prüfen: Sind Schriften in Pfade umgewandelt?"],
+    png: ["ok", "PNG mit Alphakanal, sofern vorhanden (siehe Transparenzprüfung)."],
+    tif: ["ok", "TIFF mit Alphakanal, sofern vorhanden (siehe Transparenzprüfung)."],
+    tiff:["ok", "TIFF mit Alphakanal, sofern vorhanden (siehe Transparenzprüfung)."],
+    pdf: ["ok", "PDF: grün nur mit Vektorinhalt und Transparenz. Enthält die PDF nur ein eingebettetes Pixelbild, gelten die Pixelregeln aus 4.1."],
+    psd: ["warn", "PSD: Ebenen vorhanden. Das Ergebnis hängt davon ab, wie der RIP sie zusammenrechnet."],
+    bmp: ["err", "BMP hat keinen Alphakanal."],
+    jpg: ["err", "JPG hat keinen oder einen unzuverlässigen Alphakanal. Der RIP druckt sonst ein Rechteck mit Hintergrund."],
+    jpeg:["err", "JPG hat keinen oder einen unzuverlässigen Alphakanal. Der RIP druckt sonst ein Rechteck mit Hintergrund."],
+    webp:["err", "WebP hat einen unzuverlässigen Alphakanal für den DTF-Workflow."],
+    heic:["err", "HEIC hat einen unzuverlässigen Alphakanal für den DTF-Workflow."],
+    heif:["err", "HEIF hat einen unzuverlässigen Alphakanal für den DTF-Workflow."],
+    gif: ["err", "GIF hat keinen zuverlässigen Alphakanal (nur 1-Bit-Transparenz)."],
+    doc: ["err", "Word-Dateien liest der RIP nicht."],
+    docx:["err", "Word-Dateien liest der RIP nicht."],
+    ppt: ["err", "PowerPoint-Dateien liest der RIP nicht."],
+    pptx:["err", "PowerPoint-Dateien liest der RIP nicht."]
+  };
+  var VECTOR_EXTS = { svg: 1, ai: 1, eps: 1 };
+  var RASTER_PREVIEWABLE = { png: 1, jpg: 1, jpeg: 1, pdf: 1, svg: 1 };
+
+  function extOf(name){
+    var m = /\.([a-z0-9]+)$/i.exec(name);
+    return m ? m[1].toLowerCase() : "";
+  }
+
+  function showError(msg){ errorBox.textContent = msg; errorBox.classList.add("show"); }
+  function clearError(){ errorBox.textContent = ""; errorBox.classList.remove("show"); }
+
+  fileInput.addEventListener("change", function(){
+    if (fileInput.files && fileInput.files[0]) handleFile(fileInput.files[0]);
+    fileInput.value = "";
+  });
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  function handleFile(file){
+    clearError();
+    var ext = extOf(file.name);
+    var name = file.name.replace(/\.[^.]+$/, "");
+
+    if (!RASTER_PREVIEWABLE[ext]){
+      // Format ohne Pixelvorschau: Ampel nur aus der Format-Tabelle, keine Bild-basierten Prüfungen möglich.
+      state = {
+        canvas: null, width: 0, height: 0, name: name, ext: ext,
+        isVector: !!VECTOR_EXTS[ext], sizeBytes: file.size,
+        hasAlpha: null, streuCount: 0, semiShare: 0, thinSpots: null
+      };
+      app.classList.add("show");
+      fileMeta.innerHTML = "<b>" + escapeHtml(file.name) + "</b> · " + formatBytes(file.size) +
+        " · keine Bildvorschau für dieses Format in der App.";
+      canvas.width = 1; canvas.height = 1;
+      updateAll();
+      return;
+    }
+
+    var promise = ext === "pdf" ? loadPdf(file) : loadRaster(file);
+    promise.then(function(c){
+      state = {
+        canvas: c, width: c.width, height: c.height, name: name, ext: ext,
+        isVector: !!VECTOR_EXTS[ext], sizeBytes: file.size
+      };
+      var maxWcm = c.width / 300 * MM_PER_INCH / 10;
+      widthInput.value = (Math.round(maxWcm * 10) / 10).toFixed(1);
+      if (!state.isVector) analyzePixels();
+      app.classList.add("show");
+      fileMeta.innerHTML = "<b>" + escapeHtml(file.name) + "</b> · " + c.width + " × " + c.height + " px · " + formatBytes(file.size);
+      drawPreview();
+      updateAll();
+    }).catch(function(err){
+      showError("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : "unbekannter Fehler"));
+    });
+  }
+
+  function loadRaster(file){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        if (!img.naturalWidth){ reject(new Error("Bild hat keine Pixelmaße")); return; }
+        var c = document.createElement("canvas");
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext("2d").drawImage(img, 0, 0);
+        resolve(c);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("Datei ist beschädigt oder kein gültiges Bild")); };
+      img.src = url;
+    });
+  }
+
+  function loadPdf(file){
+    if (!window.pdfjsLib) return Promise.reject(new Error("PDF-Unterstützung nicht verfügbar"));
+    if (!loadPdf._workerSet){
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      loadPdf._workerSet = true;
+    }
+    return file.arrayBuffer().then(function(buf){
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    }).then(function(pdf){ return pdf.getPage(1); }).then(function(page){
+      var scale = 300 / 72;
+      var viewport = page.getViewport({ scale: scale });
+      var MAX = 8000;
+      if (viewport.width > MAX || viewport.height > MAX){
+        var f = Math.min(MAX / viewport.width, MAX / viewport.height);
+        viewport = page.getViewport({ scale: scale * f });
+      }
+      var c = document.createElement("canvas");
+      c.width = Math.round(viewport.width);
+      c.height = Math.round(viewport.height);
+      return page.render({ canvasContext: c.getContext("2d"), viewport: viewport, background: "rgba(0,0,0,0)" })
+        .promise.then(function(){ return c; });
+    });
+  }
+
+  // ---------- Pixelanalyse ----------
+  function analyzePixels(){
+    var c = state.canvas, w = c.width, h = c.height;
+    var data;
+    try { data = c.getContext("2d").getImageData(0, 0, w, h).data; }
+    catch(e){ showError("Die Bilddaten konnten nicht ausgelesen werden."); return; }
+
+    var transparent = 0, semiLow = 0, semiAny = 0;
+    for (var i = 3; i < data.length; i += 4){
+      var a = data[i];
+      if (a === 0) transparent++;
+      else if (a < 255) { semiAny++; if (a <= 191) semiLow++; }
+    }
+    var total = w * h;
+    state.hasAlpha = transparent > 0 || semiAny > 0;
+    state.semiShare = semiAny / total;
+    state.semiLowShare = semiLow / total;
+
+    // Alpha-Streupixel: Pixel mit Alpha 1-254, die nicht an einer Motivkante liegen
+    // (keinen Nachbarn mit Alpha <=5 UND keinen Nachbarn mit Alpha >=250 in der 3x3-Umgebung).
+    var streu = 0;
+    function alphaAt(x, y){ return data[(y * w + x) * 4 + 3]; }
+    for (var y = 0; y < h; y++){
+      for (var x = 0; x < w; x++){
+        var av = alphaAt(x, y);
+        if (av === 0 || av === 255) continue;
+        var hasLow = false, hasHigh = false;
+        for (var dy = -1; dy <= 1 && !(hasLow && hasHigh); dy++){
+          var yy = y + dy; if (yy < 0 || yy >= h) continue;
+          for (var dx = -1; dx <= 1; dx++){
+            var xx = x + dx; if (xx < 0 || xx >= w) continue;
+            if (xx === x && yy === y) continue;
+            var nv = alphaAt(xx, yy);
+            if (nv <= 5) hasLow = true;
+            if (nv >= 250) hasHigh = true;
+          }
+        }
+        if (!(hasLow && hasHigh)) streu++;
+      }
+    }
+    state.streuCount = streu;
+
+    // Motivrand: kleinster Abstand eines deckenden/halbdeckenden Pixels zum Dateirand, in px
+    var minEdgeDist = null;
+    for (var yy2 = 0; yy2 < h; yy2++){
+      for (var xx2 = 0; xx2 < w; xx2++){
+        if (alphaAt(xx2, yy2) === 0) continue;
+        var d1 = Math.min(xx2, w - 1 - xx2, yy2, h - 1 - yy2);
+        if (minEdgeDist === null || d1 < minEdgeDist) minEdgeDist = d1;
+        if (minEdgeDist === 0) { yy2 = h; break; }
+      }
+    }
+    state.minEdgeDistPx = minEdgeDist;
+
+    // Mindestlinienstärke (4.7): Distanztransformation + zusammenhängende Bereiche, nur bei vertretbarer Größe
+    if (w * h <= 6000 * 6000 && w * h > 0){
+      state.thinAnalysisSkipped = false;
+      computeThinSpots(data, w, h);
+    } else {
+      state.thinAnalysisSkipped = true;
+      state.thinSpots = null;
+    }
+  }
+
+  // 2-Pass exakte euklidische Distanztransformation (Felzenszwalt/Huttenlocher) auf einer 0/1-Maske,
+  // liefert für jedes Vordergrundpixel den (quadrierten) Abstand zum nächsten Hintergrundpixel.
+  function distanceTransform(mask, w, h){
+    var INF = 1e20;
+    var g = new Float64Array(w * h);
+    for (var x = 0; x < w; x++){
+      g[x] = mask[x] ? INF : 0;
+      for (var y = 1; y < h; y++){
+        g[y * w + x] = mask[y * w + x] ? g[(y - 1) * w + x] + 1 : 0;
+      }
+      for (var y2 = h - 2; y2 >= 0; y2--){
+        var i = y2 * w + x, iBelow = (y2 + 1) * w + x;
+        if (g[iBelow] < g[i]) g[i] = g[iBelow] + 1;
+      }
+    }
+    // Zweiter Durchgang: pro Zeile die untere Einhüllende der Parabeln f(x) = g[row+x]^2
+    // bilden (Felzenszwalt/Huttenlocher). v = Stack der Scheitel-Spalten, z = deren Grenzen.
+    var out = new Float64Array(w * h);
+    var v = new Int32Array(w);
+    var z = new Float64Array(w + 1);
+    for (var yr = 0; yr < h; yr++){
+      var row = yr * w;
+      var base = function(xi){ var gv = g[row + xi]; return gv * gv; };
+      var k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+      for (var qx = 1; qx < w; qx++){
+        var s;
+        while (true){
+          var vk = v[k];
+          var den = 2 * qx - 2 * vk;
+          s = den !== 0 ? ((base(qx) + qx * qx) - (base(vk) + vk * vk)) / den : INF;
+          if (s <= z[k] && k > 0) k--; else break;
+        }
+        k++; v[k] = qx; z[k] = s; z[k + 1] = INF;
+      }
+      k = 0;
+      for (var px = 0; px < w; px++){
+        while (z[k + 1] < px) k++;
+        var vk2 = v[k];
+        out[row + px] = (px - vk2) * (px - vk2) + base(vk2);
+      }
+    }
+    return out;
+  }
+
+  function computeThinSpots(data, w, h){
+    var mask = new Uint8Array(w * h);
+    for (var i = 0, p = 3; p < data.length; p += 4, i++) mask[i] = data[p] > 0 ? 1 : 0;
+
+    var distSq = distanceTransform(mask, w, h);
+
+    var wCm = parseFloat(String(widthInput.value).replace(",", "."));
+    var effDpi = (isFinite(wCm) && wCm > 0) ? w / (wCm / 2.54) : 300;
+    var minWidthPx = MIN_LINE_MM * effDpi / MM_PER_INCH;
+    var halfMin = minWidthPx / 2;
+
+    var visited = new Uint8Array(w * h);
+    var thinMask = new Uint8Array(w * h);
+    var thinCount = 0;
+    var stack = new Int32Array(w * h);
+
+    for (var s0 = 0; s0 < w * h; s0++){
+      if (visited[s0] || !mask[s0]) continue;
+      var top = 0; stack[top++] = s0; visited[s0] = 1;
+      var comp = []; var maxDist = 0;
+      while (top > 0){
+        var idx = stack[--top];
+        comp.push(idx);
+        var dv = Math.sqrt(distSq[idx]);
+        if (dv > maxDist) maxDist = dv;
+        var cx = idx % w, cy = (idx / w) | 0;
+        if (cx > 0){ var n1 = idx - 1; if (!visited[n1] && mask[n1]){ visited[n1] = 1; stack[top++] = n1; } }
+        if (cx < w - 1){ var n2 = idx + 1; if (!visited[n2] && mask[n2]){ visited[n2] = 1; stack[top++] = n2; } }
+        if (cy > 0){ var n3 = idx - w; if (!visited[n3] && mask[n3]){ visited[n3] = 1; stack[top++] = n3; } }
+        if (cy < h - 1){ var n4 = idx + w; if (!visited[n4] && mask[n4]){ visited[n4] = 1; stack[top++] = n4; } }
+      }
+      if (maxDist < halfMin){
+        thinCount++;
+        for (var k = 0; k < comp.length; k++) thinMask[comp[k]] = 1;
+      }
+    }
+
+    state.thinSpots = { count: thinCount, mask: thinMask, minWidthPx: minWidthPx, effDpi: effDpi };
+  }
+
+  function drawPreview(){
+    if (!state || !state.canvas) return;
+    var src = state.canvas;
+    var maxW = 900, maxH = 480;
+    var f = Math.min(1, maxW / src.width, maxH / src.height);
+    canvas.width = Math.max(1, Math.round(src.width * f));
+    canvas.height = Math.max(1, Math.round(src.height * f));
+    var ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(src, 0, 0, canvas.width, canvas.height);
+
+    if (state.thinSpots && state.thinSpots.count > 0){
+      var w = src.width, h = src.height, mask = state.thinSpots.mask;
+      ctx.fillStyle = "rgba(224,32,42,0.75)";
+      var sx = canvas.width / w, sy = canvas.height / h;
+      for (var y = 0; y < h; y++){
+        for (var x = 0; x < w; x++){
+          if (mask[y * w + x]) ctx.fillRect(Math.floor(x * sx), Math.floor(y * sy), Math.ceil(sx) || 1, Math.ceil(sy) || 1);
+        }
+      }
+    }
+  }
+
+  // ---------- Prüfliste ----------
+  function updateAll(){
+    if (!state) return;
+    var wCm = parseFloat(String(widthInput.value).replace(",", "."));
+    var valid = isFinite(wCm) && wCm > 0;
+    var checks = [];
+    var worst = "ok"; // für Gesamturteil (Kundentext / Weiter-zu-Knockout-Freigabe)
+    function worstOf(level){ if (level === "err") worst = "err"; else if (level === "warn" && worst !== "err") worst = "warn"; }
+    function push(level, title, text){ checks.push([level, title, text]); worstOf(level); }
+
+    // 4.4 Dateiformat
+    var fmt = FORMAT_TABLE[state.ext];
+    if (fmt){
+      push(fmt[0], "Dateiformat: " + state.ext.toUpperCase(), fmt[1]);
+    } else {
+      push("warn", "Dateiformat unbekannt", "Die Endung „" + state.ext + "“ ist nicht in der Formattabelle hinterlegt.");
+    }
+
+    if (state.isVector){
+      heightOut.textContent = "Vektor: Auflösung entfällt.";
+      push("ok", "Auflösung entfällt (Vektor)", "Vektordateien sind beliebig skalierbar; die Auflösungsprüfung aus 4.1 entfällt.");
+    } else if (!state.canvas){
+      heightOut.textContent = "Höhe: –";
+      push("warn", "Keine Bildvorschau", "Für dieses Format kann die App die Pixelprüfungen (Auflösung, Transparenz, Linienstärke) nicht durchführen.");
+    } else {
+      var ratio = state.height / state.width;
+      var hCm = valid ? wCm * ratio : null;
+      heightOut.textContent = valid ? "Höhe: " + fmt2(hCm) + " cm" : "Höhe: –";
+
+      // 4.1 Auflösung
+      var maxWcm = state.width / 300 * MM_PER_INCH / 10;
+      var maxHcm = state.height / 300 * MM_PER_INCH / 10;
+      var resText = "Bei 300 dpi druckbar bis " + fmt2(maxWcm) + " × " + fmt2(maxHcm) + " cm.";
+      if (valid){
+        var effDpi = state.width / (wCm / 2.54);
+        if (effDpi >= 300){
+          push("ok", "Auflösung reicht", resText + " Bei " + fmt2(wCm) + " cm Breite: " + Math.round(effDpi) + " dpi.");
+        } else if (effDpi >= 150){
+          push("warn", "Auflösung knapp", resText + " Bei " + fmt2(wCm) + " cm Breite nur " + Math.round(effDpi) + " dpi (150–299 dpi, praktische Untergrenze für große, aus Distanz betrachtete Motive).");
+        } else {
+          push("err", "Auflösung zu niedrig", resText + " Bei " + fmt2(wCm) + " cm Breite nur " + Math.round(effDpi) + " dpi (unter 150). Sichtbare Treppenstufen an Rundungen wahrscheinlich.");
+        }
+      } else {
+        push("warn", "Zielbreite fehlt", resText + " Bitte eine Druckbreite eingeben.");
+      }
+
+      // 4.2 Hintergrund / Transparenz. Aus den Pixeldaten allein lässt sich nicht unterscheiden,
+      // ob das Format keinen Alphakanal kennt (JPG) oder ob ein vorhandener Alphakanal komplett
+      // deckend ist (z. B. weiße Ebene hinter dem Motiv) — beides zeigt sich gleich: kein Pixel ist
+      // durchscheinend. Beide Fälle laufen deshalb in dieselbe Meldung.
+      if (!state.hasAlpha){
+        push("err", "Kein transparenter Hintergrund", "Kein Pixel der Datei ist durchscheinend: entweder hat das Format keinen Alphakanal (z. B. JPG), oder eine deckende Fläche liegt hinter dem Motiv. Alles, was nicht transparent ist, wird gedruckt.");
+      } else {
+        push("ok", "Alphakanal vorhanden, Hintergrund freigestellt", "Randbereiche sind nicht flächig undurchsichtig.");
+      }
+
+      // Alpha-Streupixel
+      if (state.streuCount > 0){
+        var streuLevel = state.streuCount > 500 ? "warn" : "ok";
+        push(streuLevel, "Alpha-Streupixel", state.streuCount.toLocaleString("de-DE") + " Pixel mit Halbtransparenz abseits der Motivkante gefunden. Typisch bei KI-generierten Dateien. Hinweis, kein automatischer Fehler.");
+      }
+
+      // 4.3 Halbtransparenz (nur Hinweis, siehe Abschnitt 8)
+      var semiPct = state.semiLowShare * 100;
+      if (semiPct > 0){
+        push("warn", "Halbtransparenz/Verläufe", (semiPct < 0.01 ? "<0,01" : semiPct.toFixed(2).replace(".", ",")) + " % der Pixel haben Alpha unter 75 %. Hinweis, kein Fehler: An der eigenen Maschine noch nicht gemessen, wie weiche Kanten sich verhalten (siehe Abschnitt 4.3).");
+      }
+
+      // 4.5 Motivrand
+      if (state.minEdgeDistPx !== null && valid){
+        var pxPerMm = (state.width / (wCm * 10));
+        var edgeMm = state.minEdgeDistPx / pxPerMm;
+        if (edgeMm < 3){
+          push("warn", "Motiv nah am Rand", "Abstand zum Dateirand: " + fmt2(edgeMm) + " mm. Empfohlen sind mindestens 3 mm (ungeprüft; andere Anbieter nennen 5 mm).");
+        } else {
+          push("ok", "Motivrand hat Abstand", "Abstand zum Dateirand: " + fmt2(edgeMm) + " mm.");
+        }
+      }
+
+      // 4.7 Mindestlinienstärke
+      if (state.thinAnalysisSkipped){
+        push("warn", "Linienstärke nicht geprüft", "Die Datei ist für die automatische Prüfung zu groß. Bitte Sichtprüfung auf feine Linien vornehmen.");
+      } else if (state.thinSpots && state.thinSpots.count > 0){
+        push("warn", "Feine Linien unter 0,4 mm", state.thinSpots.count + " zusammenhängende Stelle(n) unter der Mindeststrichstärke, in der Vorschau rot markiert. Bitte ansehen: Anti-Aliasing erzeugt hier immer ein paar Treffer.");
+      } else {
+        push("ok", "Mindestlinienstärke eingehalten", "Keine Stelle unter 0,4 mm gefunden (bei aktueller Druckbreite).");
+      }
+
+      drawPreview();
+    }
+
+    // 4.6 Spiegelung: fester Hinweis
+    push("ok", "Spiegelung", "Datei unspiegelt anliefern, der RIP spiegelt selbst.");
+
+    renderChecks(checks);
+    toKnockoutBtn.disabled = (worst === "err") || !state.canvas;
+    state.overall = worst;
+    return worst;
+  }
+
+  function renderChecks(items){
+    checksEl.innerHTML = "";
+    items.forEach(function(it){
+      var li = document.createElement("li");
+      li.className = it[0];
+      var dot = document.createElement("span"); dot.className = "dot";
+      var txt = document.createElement("span");
+      var b = document.createElement("b"); b.textContent = it[1];
+      txt.appendChild(b); txt.appendChild(document.createTextNode(it[2]));
+      li.appendChild(dot); li.appendChild(txt);
+      checksEl.appendChild(li);
+    });
+  }
+
+  widthInput.addEventListener("input", function(){
+    if (state && state.canvas) analyzePixels(); // Linienstärke hängt von der Druckbreite ab
+    updateAll();
+  });
+
+  // ---------- Abschnitt 6: Kundentext ----------
+  textBtn.addEventListener("click", function(){
+    if (!state) return;
+    var wCm = parseFloat(String(widthInput.value).replace(",", "."));
+    var lines = [];
+    if (!state.canvas){
+      lines.push("Ihre Datei liegt im Format " + state.ext.toUpperCase() + " vor. " + (FORMAT_TABLE[state.ext] ? FORMAT_TABLE[state.ext][1] : "Bitte ein anderes Format verwenden."));
+    } else {
+      var effDpi = (isFinite(wCm) && wCm > 0) ? state.width / (wCm / 2.54) : null;
+      var maxWcm = state.width / 300 * MM_PER_INCH / 10;
+      if (effDpi !== null && effDpi < 300){
+        lines.push("Ihre Datei ist " + state.width + " Pixel breit. Für " + fmt2(wCm) + " cm Druckbreite reicht das nicht aus, das ergibt " + Math.round(effDpi) + " dpi. Wir brauchen mindestens " + Math.ceil(wCm / 2.54 * 300) + " Pixel Breite (oder eine Druckbreite bis " + fmt2(maxWcm) + " cm).");
+      }
+      if (!state.hasAlpha){
+        lines.push("Ihre Datei hat keinen transparenten Hintergrund. Bitte als PNG mit freigestelltem Motiv (Alphakanal) liefern, sonst wird die ganze Fläche mitgedruckt.");
+      }
+      if (state.thinSpots && state.thinSpots.count > 0){
+        lines.push("Ihre Datei enthält " + state.thinSpots.count + " Stelle(n) mit sehr feinen Linien (unter 0,4 mm). Diese können beim Drucken abreißen oder nicht halten. Bitte die markierten Stellen verstärken.");
+      }
+      if (state.minEdgeDistPx !== null && isFinite(wCm) && wCm > 0){
+        var pxPerMm = state.width / (wCm * 10);
+        var edgeMm = state.minEdgeDistPx / pxPerMm;
+        if (edgeMm < 3){
+          lines.push("Ihr Motiv reicht bis auf " + fmt2(edgeMm) + " mm an den Dateirand heran. Bitte mindestens 3 mm Abstand einplanen.");
+        }
+      }
+    }
+    if (!lines.length) lines.push("Ihre Datei hat keine roten oder gelben Punkte und kann so verwendet werden.");
+    textArea.value = lines.join("\n\n");
+    copyBtn.disabled = false;
+  });
+
+  // Robuste Zwischenablage-Kopie (manche Browser kennen navigator.clipboard nicht im file://-Kontext)
+  copyBtn.addEventListener("click", function(){
+    textArea.select();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(textArea.value);
+      else document.execCommand("copy");
+      copyBtn.textContent = "Kopiert!";
+      setTimeout(function(){ copyBtn.textContent = "In Zwischenablage kopieren"; }, 1500);
+    } catch(e){ /* Kopieren fehlgeschlagen, Text bleibt markiert zum manuellen Kopieren */ }
+  });
+
+  // ---------- Übergabe an Modul 2 ----------
+  toKnockoutBtn.addEventListener("click", function(){
+    if (!state || !state.canvas) return;
+    window.DTFHandoff = { canvas: state.canvas, name: state.name, wCm: parseFloat(String(widthInput.value).replace(",", ".")) };
+    window.dispatchEvent(new CustomEvent("dtf-handoff"));
+    document.getElementById("tabBtnKnockout").click();
+  });
+
+  function formatBytes(b){
+    if (!isFinite(b)) return "";
+    if (b < 1024) return b + " B";
+    if (b < 1048576) return (b / 1024).toFixed(0) + " KB";
+    return (b / 1048576).toFixed(1) + " MB";
+  }
+  function fmt2(v){ return (Math.round(v * 10) / 10).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  function escapeHtml(s){
+    return s.replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" }[c]; });
+  }
+})();
+</script>
+
+<script>
+// ==================== Modul 2: Knockout (Abschnitt 4b) ====================
+(function(){
+  "use strict";
+
+  var errorBox = document.getElementById("koErrorBox");
+  var drop = document.getElementById("koDrop");
+  var fileInput = document.getElementById("koFileInput");
+  var app = document.getElementById("koApp");
+  var canvasFilm = document.getElementById("koCanvasFilm");
+  var canvasShirt = document.getElementById("koCanvasShirt");
+  var shirtBg = document.getElementById("koShirtBg");
+  var fileMeta = document.getElementById("koFileMeta");
+  var colorSelect = document.getElementById("koColorSelect");
+  var colorHex = document.getElementById("koColorHex");
+  var saveColorBtn = document.getElementById("koSaveColorBtn");
+  var modeBlack = document.getElementById("koModeBlack");
+  var modeColors = document.getElementById("koModeColors");
+  var blackControls = document.getElementById("koBlackControls");
+  var colorControls = document.getElementById("koColorControls");
+  var lWeg = document.getElementById("koLWeg"), lWegVal = document.getElementById("koLWegVal");
+  var lBleibt = document.getElementById("koLBleibt"), lBleibtVal = document.getElementById("koLBleibtVal");
+  var sMax = document.getElementById("koSMax"), sMaxVal = document.getElementById("koSMaxVal");
+  var deWeg = document.getElementById("koDeWeg"), deWegVal = document.getElementById("koDeWegVal");
+  var deBleibt = document.getElementById("koDeBleibt"), deBleibtVal = document.getElementById("koDeBleibtVal");
+  var swatchesEl = document.getElementById("koColorSwatches");
+  var colorHexInput = document.getElementById("koColorHexInput");
+  var addColorBtn = document.getElementById("koAddColorBtn");
+  var exportBtn = document.getElementById("koExportBtn");
+  var reportLine = document.getElementById("koReportLine");
+
+  var STORAGE_KEY = "dtf-knockout-colors";
+  var src = null; // Original-Canvas aus Modul 1
+  var targetColors = []; // bis zu 4 {r,g,b}
+
+  function showError(msg){ errorBox.textContent = msg; errorBox.classList.add("show"); }
+  function clearError(){ errorBox.textContent = ""; errorBox.classList.remove("show"); }
+
+  function loadSavedColors(){
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(e){ list = []; }
+    colorSelect.innerHTML = '<option value="">– eigene Hex-Eingabe –</option>';
+    list.forEach(function(hex){
+      var o = document.createElement("option");
+      o.value = hex; o.textContent = hex;
+      colorSelect.appendChild(o);
+    });
+    return list;
+  }
+  loadSavedColors();
+
+  colorSelect.addEventListener("change", function(){
+    if (colorSelect.value) colorHex.value = colorSelect.value;
+    updatePreview();
+  });
+  colorHex.addEventListener("input", updatePreview);
+  saveColorBtn.addEventListener("click", function(){
+    var hex = normalizeHex(colorHex.value);
+    if (!hex){ showError("Bitte einen gültigen Hex-Wert eingeben, z. B. #1A1A1A."); return; }
+    clearError();
+    var list = loadSavedColors_raw();
+    if (list.indexOf(hex) === -1){ list.push(hex); localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+    loadSavedColors();
+    colorSelect.value = hex;
+  });
+  function loadSavedColors_raw(){
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(e){ return []; }
+  }
+
+  function normalizeHex(h){
+    h = (h || "").trim();
+    if (!/^#?[0-9a-fA-F]{6}$/.test(h)) return null;
+    return "#" + h.replace("#", "").toUpperCase();
+  }
+  function hexToRgb(hex){
+    var h = normalizeHex(hex) || "#1A1A1A";
+    return { r: parseInt(h.slice(1,3),16), g: parseInt(h.slice(3,5),16), b: parseInt(h.slice(5,7),16) };
+  }
+
+  [modeBlack, modeColors].forEach(function(r){
+    r.addEventListener("change", function(){
+      blackControls.hidden = !modeBlack.checked;
+      colorControls.hidden = !modeColors.checked;
+      updatePreview();
+    });
+  });
+
+  [lWeg, lBleibt, sMax].forEach(function(inp){
+    inp.addEventListener("input", function(){
+      lWegVal.textContent = lWeg.value; lBleibtVal.textContent = lBleibt.value; sMaxVal.textContent = sMax.value;
+      updatePreview();
+    });
+  });
+  [deWeg, deBleibt].forEach(function(inp){
+    inp.addEventListener("input", function(){
+      deWegVal.textContent = deWeg.value; deBleibtVal.textContent = deBleibt.value;
+      updatePreview();
+    });
+  });
+
+  addColorBtn.addEventListener("click", function(){
+    var hex = normalizeHex(colorHexInput.value);
+    if (!hex){ showError("Bitte einen gültigen Hex-Wert eingeben, z. B. #C40063."); return; }
+    clearError();
+    addTargetColor(hexToRgb(hex));
+    colorHexInput.value = "";
+  });
+
+  function addTargetColor(rgb){
+    if (targetColors.length >= 4){ showError("Es können höchstens 4 Farben gewählt werden."); return; }
+    targetColors.push(rgb);
+    renderSwatches();
+    updatePreview();
+  }
+  function renderSwatches(){
+    swatchesEl.innerHTML = "";
+    targetColors.forEach(function(c, i){
+      var btn = document.createElement("button");
+      btn.className = "swatch";
+      btn.type = "button";
+      btn.title = "Entfernen";
+      btn.style.background = "rgb(" + c.r + "," + c.g + "," + c.b + ")";
+      btn.addEventListener("click", function(){ targetColors.splice(i, 1); renderSwatches(); updatePreview(); });
+      swatchesEl.appendChild(btn);
+    });
+  }
+
+  canvasFilm.addEventListener("click", function(e){
+    if (!modeColors.checked || !src) return;
+    var rect = canvasFilm.getBoundingClientRect();
+    var x = Math.floor((e.clientX - rect.left) / rect.width * src.width);
+    var y = Math.floor((e.clientY - rect.top) / rect.height * src.height);
+    var d = src.getContext("2d").getImageData(Math.max(0,Math.min(src.width-1,x)), Math.max(0,Math.min(src.height-1,y)), 1, 1).data;
+    if (d[3] === 0) return; // transparenter Klick, keine Farbe zum Aufnehmen
+    addTargetColor({ r: d[0], g: d[1], b: d[2] });
+  });
+
+  // ---------- Datei übernehmen: entweder per Handoff aus Modul 1, oder direkt hier hochgeladen ----------
+  function adoptCanvas(canvas, name){
+    src = canvas;
+    window.DTFHandoff = { canvas: canvas, name: name, wCm: null };
+    app.classList.add("show");
+    fileMeta.textContent = name + " · " + src.width + " × " + src.height + " px";
+    exportBtn.disabled = false;
+    updatePreview();
+  }
+
+  window.addEventListener("dtf-handoff", function(){
+    var h = window.DTFHandoff;
+    if (!h) return;
+    adoptCanvas(h.canvas, h.name);
+  });
+
+  function loadRasterKO(file){
+    return new Promise(function(resolve, reject){
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        if (!img.naturalWidth){ reject(new Error("Bild hat keine Pixelmaße")); return; }
+        var c = document.createElement("canvas");
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext("2d").drawImage(img, 0, 0);
+        resolve(c);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("Datei ist beschädigt oder kein gültiges Bild")); };
+      img.src = url;
+    });
+  }
+
+  function loadPdfKO(file){
+    if (!window.pdfjsLib) return Promise.reject(new Error("PDF-Unterstützung nicht verfügbar"));
+    return file.arrayBuffer().then(function(buf){
+      return pdfjsLib.getDocument({ data: buf }).promise;
+    }).then(function(pdf){ return pdf.getPage(1); }).then(function(page){
+      var scale = 300 / 72;
+      var viewport = page.getViewport({ scale: scale });
+      var MAX = 8000;
+      if (viewport.width > MAX || viewport.height > MAX){
+        var f = Math.min(MAX / viewport.width, MAX / viewport.height);
+        viewport = page.getViewport({ scale: scale * f });
+      }
+      var c = document.createElement("canvas");
+      c.width = Math.round(viewport.width);
+      c.height = Math.round(viewport.height);
+      return page.render({ canvasContext: c.getContext("2d"), viewport: viewport, background: "rgba(0,0,0,0)" })
+        .promise.then(function(){ return c; });
+    });
+  }
+
+  function handleKoFile(file){
+    clearError();
+    var ext = (/\.([a-z0-9]+)$/i.exec(file.name) || [])[1] || "";
+    var isPdf = ext.toLowerCase() === "pdf";
+    var promise = isPdf ? loadPdfKO(file) : loadRasterKO(file);
+    promise.then(function(c){
+      adoptCanvas(c, file.name.replace(/\.[^.]+$/, ""));
+    }).catch(function(err){
+      showError("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : "unbekannter Fehler"));
+    });
+  }
+
+  fileInput.addEventListener("change", function(){
+    if (fileInput.files && fileInput.files[0]) handleKoFile(fileInput.files[0]);
+    fileInput.value = "";
+  });
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleKoFile(f);
+  });
+
+  // ---------- Rec.709-Helligkeit, HSV-Sättigung, CIELAB ----------
+  function luma709(r, g, b){ return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
+  function hsvSaturation(r, g, b){
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    return mx === 0 ? 0 : (mx - mn) / mx;
+  }
+  function srgbToLinear(c){ c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function rgbToLab(r, g, b){
+    var rl = srgbToLinear(r), gl = srgbToLinear(g), bl = srgbToLinear(b);
+    var x = rl * 0.4124 + gl * 0.3576 + bl * 0.1805;
+    var y = rl * 0.2126 + gl * 0.7152 + bl * 0.0722;
+    var z = rl * 0.0193 + gl * 0.1192 + bl * 0.9505;
+    x /= 0.95047; z /= 1.08883;
+    function fInv(t){ return t > 0.008856 ? Math.pow(t, 1/3) : (7.787 * t + 16/116); }
+    var fx = fInv(x), fy = fInv(y), fz = fInv(z);
+    return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+  }
+  function labDist(c1, c2){
+    var dl = c1.L - c2.L, da = c1.a - c2.a, db = c1.b - c2.b;
+    return Math.sqrt(dl*dl + da*da + db*db);
+  }
+
+  // Ergebnis-Canvas nach Knockout + Randbereinigung (4b.4). refColor: für Unpremultiply.
+  function computeKnockout(){
+    if (!src) return null;
+    var w = src.width, h = src.height;
+    var out = document.createElement("canvas");
+    out.width = w; out.height = h;
+    var ctx = out.getContext("2d");
+    ctx.drawImage(src, 0, 0);
+    var img = ctx.getImageData(0, 0, w, h);
+    var d = img.data;
+
+    var refPerPixel = new Float32Array(w * h * 3); // entfernte Referenzfarbe je Pixel für 4b.4
+
+    if (modeBlack.checked){
+      var lw = parseFloat(lWeg.value), lb = parseFloat(lBleibt.value), smaxN = parseFloat(sMax.value) / 100;
+      for (var i = 0, p = 0; p < d.length; p += 4, i++){
+        var r = d[p], g = d[p+1], b = d[p+2], a = d[p+3];
+        if (a === 0) continue;
+        var s = hsvSaturation(r, g, b);
+        if (s > smaxN) continue; // Sperre für bunte Pixel
+        var L = luma709(r, g, b);
+        var factor;
+        if (L <= lw) factor = 0;
+        else if (L >= lb) factor = 1;
+        else factor = (L - lw) / (lb - lw);
+        if (factor < 1){
+          d[p+3] = Math.round(a * factor);
+          refPerPixel[i*3] = 0; refPerPixel[i*3+1] = 0; refPerPixel[i*3+2] = 0;
+        }
+      }
+    } else {
+      var labTargets = targetColors.map(function(c){ return { rgb: c, lab: rgbToLab(c.r, c.g, c.b) }; });
+      var dWeg = parseFloat(deWeg.value), dBleibt = parseFloat(deBleibt.value);
+      for (var i2 = 0, p2 = 0; p2 < d.length; p2 += 4, i2++){
+        var a2 = d[p2+3];
+        if (a2 === 0 || labTargets.length === 0) continue;
+        var pxLab = rgbToLab(d[p2], d[p2+1], d[p2+2]);
+        var best = null, bestDist = Infinity;
+        for (var t = 0; t < labTargets.length; t++){
+          var dist = labDist(pxLab, labTargets[t].lab);
+          if (dist < bestDist){ bestDist = dist; best = labTargets[t]; }
+        }
+        if (bestDist >= dBleibt) continue;
+        var factor2 = bestDist <= dWeg ? 0 : (bestDist - dWeg) / (dBleibt - dWeg);
+        d[p2+3] = Math.round(a2 * factor2);
+        refPerPixel[i2*3] = best.rgb.r; refPerPixel[i2*3+1] = best.rgb.g; refPerPixel[i2*3+2] = best.rgb.b;
+      }
+    }
+
+    // 4b.4 Randproblem: Unpremultiply gegen die entfernte Farbe für Pixel mit Alpha 1-254
+    for (var i3 = 0, p3 = 0; p3 < d.length; p3 += 4, i3++){
+      var a3 = d[p3+3];
+      if (a3 > 0 && a3 < 255){
+        var af = a3 / 255;
+        var rr = refPerPixel[i3*3], gg = refPerPixel[i3*3+1], bb = refPerPixel[i3*3+2];
+        if (rr || gg || bb || (modeBlack.checked)){
+          d[p3]   = clamp255((d[p3]   - (1 - af) * rr) / af);
+          d[p3+1] = clamp255((d[p3+1] - (1 - af) * gg) / af);
+          d[p3+2] = clamp255((d[p3+2] - (1 - af) * bb) / af);
+        }
+      }
+    }
+
+    ctx.putImageData(img, 0, 0);
+    return out;
+  }
+  function clamp255(v){ return Math.max(0, Math.min(255, Math.round(v))); }
+
+  var previewTimer = null;
+  function updatePreview(){
+    if (!src) return;
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(function(){
+      var result = computeKnockout();
+      if (!result) return;
+
+      var maxW = 420, maxH = 420;
+      var f = Math.min(1, maxW / result.width, maxH / result.height);
+      [canvasFilm, canvasShirt].forEach(function(c){
+        c.width = Math.max(1, Math.round(result.width * f));
+        c.height = Math.max(1, Math.round(result.height * f));
+      });
+      canvasFilm.getContext("2d").clearRect(0,0,canvasFilm.width,canvasFilm.height);
+      canvasFilm.getContext("2d").drawImage(result, 0, 0, canvasFilm.width, canvasFilm.height);
+
+      var shirtHex = normalizeHex(colorHex.value) || "#1A1A1A";
+      shirtBg.style.background = shirtHex;
+      canvasShirt.getContext("2d").clearRect(0,0,canvasShirt.width,canvasShirt.height);
+      canvasShirt.getContext("2d").drawImage(result, 0, 0, canvasShirt.width, canvasShirt.height);
+
+      window.DTFKnockoutResult = result;
+    }, 120);
+  }
+
+  // ---------- 4b.5 Export mit Pflichtvermerk ----------
+  exportBtn.addEventListener("click", function(){
+    if (!src) return;
+    clearError();
+    var result = computeKnockout();
+    var shirtHex = normalizeHex(colorHex.value) || "#1A1A1A";
+    var mode = modeBlack.checked ? "schwarz" : "farben";
+    var meta = modeBlack.checked
+      ? "Textilfarbe:" + shirtHex + ";Modus:schwarz;L_weg:" + lWeg.value + ";L_bleibt:" + lBleibt.value + ";S_max:" + (parseFloat(sMax.value)/100).toFixed(2)
+      : "Textilfarbe:" + shirtHex + ";Modus:farben;Farben:" + targetColors.map(function(c){ return rgbToHex(c); }).join(",") + ";dE_weg:" + deWeg.value + ";dE_bleibt:" + deBleibt.value;
+
+    result.toBlob(function(blob){
+      if (!blob){ showError("Die PNG konnte nicht erzeugt werden."); return; }
+      blob.arrayBuffer().then(function(buf){
+        var withMeta = injectText(new Uint8Array(buf), "dtf-knockout", meta);
+        var h = window.DTFHandoff;
+        var name = (h && h.name ? h.name : "motiv") + "_knockout.png";
+        downloadBlob(new Blob([withMeta], { type: "image/png" }), name);
+        reportLine.textContent = "Knockout bereits angewendet, Textilfarbe " + shirtHex + ". Im RIP kein KnockMeOut aktivieren.";
+      });
+    }, "image/png");
+  });
+
+  function rgbToHex(c){
+    function h(v){ return v.toString(16).padStart(2, "0").toUpperCase(); }
+    return "#" + h(c.r) + h(c.g) + h(c.b);
+  }
+
+  function downloadBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+  }
+
+  // tEXt-Chunk (unkomprimiert, Latin-1) direkt vor IEND einfügen.
+  function injectText(png, keyword, text){
+    var sig = [137,80,78,71,13,10,26,10];
+    for (var s = 0; s < 8; s++) if (png[s] !== sig[s]) throw new Error("Keine gültige PNG");
+    var chunks = [];
+    var pos = 8;
+    while (pos < png.length){
+      var len = readU32(png, pos);
+      var type = String.fromCharCode(png[pos+4], png[pos+5], png[pos+6], png[pos+7]);
+      var end = pos + 12 + len;
+      chunks.push({ type: type, bytes: png.subarray(pos, end) });
+      pos = end;
+      if (type === "IEND") break;
+    }
+    var keyBytes = strToBytes(keyword);
+    var textBytes = strToBytes(text);
+    var data = new Uint8Array(keyBytes.length + 1 + textBytes.length);
+    data.set(keyBytes, 0); data[keyBytes.length] = 0; data.set(textBytes, keyBytes.length + 1);
+    var typeBytes = [116,69,88,116]; // "tEXt"
+    var crcInput = new Uint8Array(4 + data.length);
+    crcInput.set(typeBytes, 0); crcInput.set(data, 4);
+    var chunk = new Uint8Array(12 + data.length);
+    writeU32(chunk, 0, data.length);
+    chunk.set(typeBytes, 4);
+    chunk.set(data, 8);
+    writeU32(chunk, 8 + data.length, crc32(crcInput));
+
+    var totalLen = 8;
+    chunks.forEach(function(c){ totalLen += c.bytes.length; });
+    totalLen += chunk.length;
+    var outArr = new Uint8Array(totalLen);
+    outArr.set(sig, 0);
+    var o = 8;
+    chunks.forEach(function(c){
+      if (c.type === "IEND"){ outArr.set(chunk, o); o += chunk.length; }
+      outArr.set(c.bytes, o); o += c.bytes.length;
+    });
+    return outArr;
+  }
+  function strToBytes(s){
+    var b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0xFF;
+    return b;
+  }
+  function readU32(arr, i){ return ((arr[i]<<24)|(arr[i+1]<<16)|(arr[i+2]<<8)|arr[i+3]) >>> 0; }
+  function writeU32(arr, i, v){ arr[i]=(v>>>24)&255; arr[i+1]=(v>>>16)&255; arr[i+2]=(v>>>8)&255; arr[i+3]=v&255; }
+  var crcTable = (function(){
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++){
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(bytes){
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
   }
 })();
 </script>
