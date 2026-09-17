@@ -11,13 +11,16 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+from PIL import Image
 
-from . import formats
-from .config import MAX_UPLOAD_BYTES, PROJECT_ROOT
+from . import formats, pdfx
+from .color import ICCProfileMissingError
+from .config import MAX_UPLOAD_BYTES, OUTPUT_DIR, PROJECT_ROOT
 from .resolution import check_resolution
 from .uploads import UploadError, find_preview, find_stored_upload, save_upload
 from .workdir_cleanup import cleanup_loop, run_cleanup_once
@@ -113,8 +116,6 @@ async def aufloesung_pruefen(
     except formats.InvalidFormatError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    from PIL import Image
-
     with Image.open(stored_path) as img:
         width_px, height_px = img.size
 
@@ -128,6 +129,61 @@ async def aufloesung_pruefen(
         "ampel": result.ampel,
         "hinweis": result.hinweis,
     }
+
+
+def _is_safe_pdf_id(pdf_id: str) -> bool:
+    return bool(pdf_id) and len(pdf_id) == 32 and all(c in "0123456789abcdef" for c in pdf_id)
+
+
+@app.post("/api/pdf-erzeugen")
+async def pdf_erzeugen(
+    upload_id: str = Form(...),
+    format_code: str = Form(...),
+    breite_mm: float | None = Form(default=None),
+    hoehe_mm: float | None = Form(default=None),
+) -> dict:
+    stored_path = find_stored_upload(upload_id)
+    if stored_path is None:
+        raise HTTPException(status_code=404, detail="Bild nicht gefunden. Bitte erneut hochladen.")
+
+    try:
+        page_format = formats.resolve_format(format_code, breite_mm, hoehe_mm)
+    except formats.InvalidFormatError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    pdf_id = uuid.uuid4().hex
+    output_path = OUTPUT_DIR / f"{pdf_id}.pdf"
+
+    try:
+        with Image.open(stored_path) as img:
+            result = pdfx.export_pdfx(img, page_format, output_path)
+    except ICCProfileMissingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except (pdfx.GhostscriptNotFoundError, pdfx.PdfXExportError) as exc:
+        logger.error("PDF/X-Export ist fehlgeschlagen.")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return {
+        "pdf_id": pdf_id,
+        "download_url": f"/api/pdf/{pdf_id}",
+        "max_farbauftrag_prozent": round(result.max_ink_coverage_percent, 1),
+        "icc_profil": result.profile.description,
+        "trimbox_mm": {
+            "breite": round((result.geometry.trim_x1 - result.geometry.trim_x0) / pdfx.PT_PER_MM, 1),
+            "hoehe": round((result.geometry.trim_y1 - result.geometry.trim_y0) / pdfx.PT_PER_MM, 1),
+        },
+        "dateigroesse_bytes": output_path.stat().st_size,
+    }
+
+
+@app.get("/api/pdf/{pdf_id}")
+async def pdf_download(pdf_id: str) -> FileResponse:
+    if not _is_safe_pdf_id(pdf_id):
+        raise HTTPException(status_code=404, detail="PDF nicht gefunden.")
+    path = OUTPUT_DIR / f"{pdf_id}.pdf"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="PDF nicht gefunden. Möglicherweise wurde es bereits automatisch gelöscht.")
+    return FileResponse(path, media_type="application/pdf", filename="texstyle-dtf-druckdatei.pdf")
 
 
 def _parse_args() -> argparse.Namespace:

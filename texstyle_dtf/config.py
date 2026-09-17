@@ -38,7 +38,10 @@ ALLOWED_UPLOAD_CONTENT_TYPES = {
 
 # ICC-Zielprofil für die CMYK-Konvertierung (Schritt 2). Muss vom Betreiber
 # bereitgestellt werden, kein automatischer Download, kein stiller Fallback.
-TEXSTYLE_ICC_CMYK = os.environ.get("TEXSTYLE_ICC_CMYK", "").strip()
+# Wird als Funktion (nicht als Konstante) gelesen, damit Tests die
+# Umgebungsvariable pro Testfall setzen/entfernen können.
+def get_icc_cmyk_env() -> str:
+    return os.environ.get("TEXSTYLE_ICC_CMYK", "").strip()
 
 # Zielauflösung für die Druckprüfung (dpi).
 TARGET_DPI = 300
