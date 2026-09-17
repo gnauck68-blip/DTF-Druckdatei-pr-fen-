@@ -19,9 +19,20 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image
 
-from . import formats, pdfx, preflight
+from . import dtf, formats, pdfx, preflight
 from .color import ICCProfileMissingError
-from .config import MAX_UPLOAD_BYTES, OUTPUT_DIR, PROJECT_ROOT
+from .config import (
+    DTF_KNOCKOUT_DEFAULT,
+    DTF_KNOCKOUT_MAX,
+    DTF_KNOCKOUT_MIN,
+    DTF_LPI_DEFAULT,
+    DTF_LPI_MAX,
+    DTF_LPI_MIN,
+    DTF_WINKEL_DEFAULT,
+    MAX_UPLOAD_BYTES,
+    OUTPUT_DIR,
+    PROJECT_ROOT,
+)
 from .resolution import check_resolution
 from .uploads import UploadError, find_preview, find_stored_upload, save_upload
 from .workdir_cleanup import cleanup_loop, run_cleanup_once
@@ -222,6 +233,70 @@ async def pdf_download(pdf_id: str) -> FileResponse:
         )
 
     return FileResponse(path, media_type="application/pdf", filename="texstyle-dtf-druckdatei.pdf")
+
+
+_DTF_DATEI_NAMEN = {
+    "farbfilm": "_farbfilm.png",
+    "weissplatte": "_weissplatte.png",
+    "pdf": "_dtf.pdf",
+}
+
+
+def _is_safe_dtf_id(dtf_id: str) -> bool:
+    return bool(dtf_id) and len(dtf_id) == 32 and all(c in "0123456789abcdef" for c in dtf_id)
+
+
+@app.post("/api/dtf-erzeugen")
+async def dtf_erzeugen(
+    upload_id: str = Form(...),
+    lpi: float = Form(default=DTF_LPI_DEFAULT),
+    winkel_grad: float = Form(default=DTF_WINKEL_DEFAULT),
+    knockout_schwelle: int = Form(default=DTF_KNOCKOUT_DEFAULT),
+) -> dict:
+    stored_path = find_stored_upload(upload_id)
+    if stored_path is None:
+        raise HTTPException(status_code=404, detail="Bild nicht gefunden. Bitte erneut hochladen.")
+
+    if not (DTF_LPI_MIN <= lpi <= DTF_LPI_MAX):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Die Rasterweite muss zwischen {DTF_LPI_MIN:.0f} und {DTF_LPI_MAX:.0f} liegen.",
+        )
+    if not (DTF_KNOCKOUT_MIN <= knockout_schwelle <= DTF_KNOCKOUT_MAX):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Die Knockout-Schwelle muss zwischen {DTF_KNOCKOUT_MIN} und {DTF_KNOCKOUT_MAX} liegen.",
+        )
+
+    dtf_id = uuid.uuid4().hex
+
+    try:
+        with Image.open(stored_path) as img:
+            result = dtf.export_dtf(img, OUTPUT_DIR, dtf_id, lpi, winkel_grad, knockout_schwelle)
+    except ICCProfileMissingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except dtf.DtfParameterError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {
+        "dtf_id": dtf_id,
+        "farbfilm_url": f"/api/dtf-datei/{dtf_id}/farbfilm",
+        "weissplatte_url": f"/api/dtf-datei/{dtf_id}/weissplatte",
+        "pdf_url": f"/api/dtf-datei/{dtf_id}/pdf",
+        "breite_px": result.breite_px,
+        "hoehe_px": result.hoehe_px,
+    }
+
+
+@app.get("/api/dtf-datei/{dtf_id}/{art}")
+async def dtf_datei(dtf_id: str, art: str) -> FileResponse:
+    if not _is_safe_dtf_id(dtf_id) or art not in _DTF_DATEI_NAMEN:
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden.")
+    path = OUTPUT_DIR / f"{dtf_id}{_DTF_DATEI_NAMEN[art]}"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden. Möglicherweise wurde sie bereits automatisch gelöscht.")
+    media_type = "application/pdf" if art == "pdf" else "image/png"
+    return FileResponse(path, media_type=media_type, filename=path.name)
 
 
 def _parse_args() -> argparse.Namespace:

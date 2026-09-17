@@ -145,6 +145,37 @@
     </div>
   </section>
 
+  <section class="panel">
+    <h2>4. DTF-Modul: Farbfilm und Weißplatte</h2>
+    <p class="info-liste">Für den Textildruck: rastert den Farbfilm und berechnet die weiße Unterdruckschicht.</p>
+    <div class="format-zeile">
+      <div>
+        <label for="dtf-lpi">Rasterweite (Linien pro Zoll)</label>
+        <input type="number" id="dtf-lpi" min="10" max="150" step="1" value="45">
+      </div>
+      <div>
+        <label for="dtf-winkel">Rasterwinkel (Grad)</label>
+        <input type="number" id="dtf-winkel" min="0" max="90" step="0.5" value="22.5">
+      </div>
+      <div>
+        <label for="dtf-knockout">Knockout-Schwelle (0-255, hell = kein Weiß)</label>
+        <input type="number" id="dtf-knockout" min="0" max="255" step="1" value="240">
+      </div>
+    </div>
+    <button id="dtf-btn" disabled>DTF-Dateien erzeugen</button>
+    <div id="fehler-dtf" class="fehler versteckt"></div>
+    <div id="dtf-ergebnis" class="vorschau-bereich versteckt">
+      <div class="info-liste">
+        <div>Pixelmaße (beide Filme deckungsgleich): <span id="dtf-pixelmasse"></span></div>
+        <div style="margin-top:10px;">
+          <a id="dtf-farbfilm-link" class="download-btn" href="#">Farbfilm (PNG) herunterladen</a><br>
+          <a id="dtf-weissplatte-link" class="download-btn" href="#">Weißplatte (PNG) herunterladen</a><br>
+          <a id="dtf-pdf-link" class="download-btn" href="#">Vorschau-PDF herunterladen</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <script>
@@ -167,6 +198,16 @@
   const preflightListe = document.getElementById('preflight-liste');
   const downloadLink = document.getElementById('download-link');
   const gesperrtHinweis = document.getElementById('gesperrt-hinweis');
+  const dtfBtn = document.getElementById('dtf-btn');
+  const dtfLpi = document.getElementById('dtf-lpi');
+  const dtfWinkel = document.getElementById('dtf-winkel');
+  const dtfKnockout = document.getElementById('dtf-knockout');
+  const fehlerDtf = document.getElementById('fehler-dtf');
+  const dtfErgebnis = document.getElementById('dtf-ergebnis');
+  const dtfPixelmasse = document.getElementById('dtf-pixelmasse');
+  const dtfFarbfilmLink = document.getElementById('dtf-farbfilm-link');
+  const dtfWeissplatteLink = document.getElementById('dtf-weissplatte-link');
+  const dtfPdfLink = document.getElementById('dtf-pdf-link');
 
   let aktuelleUploadId = null;
 
@@ -227,9 +268,11 @@
     vorschauBereich.classList.remove('versteckt');
     pruefenBtn.disabled = false;
     erzeugenBtn.disabled = false;
+    dtfBtn.disabled = false;
     preflightListe.classList.add('versteckt');
     downloadLink.classList.add('versteckt');
     gesperrtHinweis.classList.add('versteckt');
+    dtfErgebnis.classList.add('versteckt');
   }
 
   pruefenBtn.addEventListener('click', async () => {
@@ -329,6 +372,45 @@
     } else {
       gesperrtHinweis.classList.remove('versteckt');
     }
+  });
+
+  dtfBtn.addEventListener('click', async () => {
+    if (!aktuelleUploadId) return;
+    versteckeFehler(fehlerDtf);
+    dtfErgebnis.classList.add('versteckt');
+    dtfBtn.disabled = true;
+    dtfBtn.textContent = 'DTF-Dateien werden erzeugt …';
+
+    const formData = new FormData();
+    formData.append('upload_id', aktuelleUploadId);
+    formData.append('lpi', dtfLpi.value);
+    formData.append('winkel_grad', dtfWinkel.value);
+    formData.append('knockout_schwelle', dtfKnockout.value);
+
+    let antwort;
+    try {
+      antwort = await fetch('/api/dtf-erzeugen', { method: 'POST', body: formData });
+    } catch (e) {
+      zeigeFehler(fehlerDtf, 'Die DTF-Erstellung ist fehlgeschlagen. Bitte erneut versuchen.');
+      dtfBtn.disabled = false;
+      dtfBtn.textContent = 'DTF-Dateien erzeugen';
+      return;
+    }
+
+    const daten = await antwort.json().catch(() => ({}));
+    dtfBtn.disabled = false;
+    dtfBtn.textContent = 'DTF-Dateien erzeugen';
+
+    if (!antwort.ok) {
+      zeigeFehler(fehlerDtf, daten.detail || 'Die DTF-Erstellung ist fehlgeschlagen.');
+      return;
+    }
+
+    dtfPixelmasse.textContent = `${daten.breite_px} x ${daten.hoehe_px} Pixel`;
+    dtfFarbfilmLink.href = daten.farbfilm_url;
+    dtfWeissplatteLink.href = daten.weissplatte_url;
+    dtfPdfLink.href = daten.pdf_url;
+    dtfErgebnis.classList.remove('versteckt');
   });
 })();
 </script>
