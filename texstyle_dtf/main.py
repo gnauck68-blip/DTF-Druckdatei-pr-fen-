@@ -13,12 +13,13 @@ import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image
 
-from . import formats, pdfx
+from . import formats, pdfx, preflight
 from .color import ICCProfileMissingError
 from .config import MAX_UPLOAD_BYTES, OUTPUT_DIR, PROJECT_ROOT
 from .resolution import check_resolution
@@ -135,6 +136,26 @@ def _is_safe_pdf_id(pdf_id: str) -> bool:
     return bool(pdf_id) and len(pdf_id) == 32 and all(c in "0123456789abcdef" for c in pdf_id)
 
 
+def _preflight_report_dict(bericht: preflight.PreflightReport) -> dict:
+    return {
+        "gesamt_ampel": bericht.gesamt_ampel,
+        "download_erlaubt": bericht.download_erlaubt,
+        "punkte": [
+            {"schluessel": item.schluessel, "label": item.label, "ampel": item.ampel, "hinweis": item.hinweis}
+            for item in bericht.items
+        ],
+    }
+
+
+def _pdf_pfad_oder_404(pdf_id: str) -> Path:
+    if not _is_safe_pdf_id(pdf_id):
+        raise HTTPException(status_code=404, detail="PDF nicht gefunden.")
+    path = OUTPUT_DIR / f"{pdf_id}.pdf"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="PDF nicht gefunden. Möglicherweise wurde es bereits automatisch gelöscht.")
+    return path
+
+
 @app.post("/api/pdf-erzeugen")
 async def pdf_erzeugen(
     upload_id: str = Form(...),
@@ -163,6 +184,8 @@ async def pdf_erzeugen(
         logger.error("PDF/X-Export ist fehlgeschlagen.")
         raise HTTPException(status_code=500, detail=str(exc))
 
+    bericht = preflight.run_preflight(output_path)
+
     return {
         "pdf_id": pdf_id,
         "download_url": f"/api/pdf/{pdf_id}",
@@ -173,16 +196,31 @@ async def pdf_erzeugen(
             "hoehe": round((result.geometry.trim_y1 - result.geometry.trim_y0) / pdfx.PT_PER_MM, 1),
         },
         "dateigroesse_bytes": output_path.stat().st_size,
+        "preflight": _preflight_report_dict(bericht),
     }
+
+
+@app.get("/api/preflight/{pdf_id}")
+async def preflight_abrufen(pdf_id: str) -> dict:
+    path = _pdf_pfad_oder_404(pdf_id)
+    bericht = preflight.run_preflight(path)
+    return _preflight_report_dict(bericht)
 
 
 @app.get("/api/pdf/{pdf_id}")
 async def pdf_download(pdf_id: str) -> FileResponse:
-    if not _is_safe_pdf_id(pdf_id):
-        raise HTTPException(status_code=404, detail="PDF nicht gefunden.")
-    path = OUTPUT_DIR / f"{pdf_id}.pdf"
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="PDF nicht gefunden. Möglicherweise wurde es bereits automatisch gelöscht.")
+    path = _pdf_pfad_oder_404(pdf_id)
+
+    # Preflight wird vor jedem Download erneut geprüft (Punkt 8): Bei Rot ist
+    # der Download gesperrt, unabhängig davon, was das Frontend anzeigt.
+    bericht = preflight.run_preflight(path)
+    if not bericht.download_erlaubt:
+        rote_punkte = [item.label for item in bericht.items if item.ampel == "rot"]
+        raise HTTPException(
+            status_code=409,
+            detail=f"Download gesperrt: Preflight-Prüfung zeigt Rot bei: {', '.join(rote_punkte)}.",
+        )
+
     return FileResponse(path, media_type="application/pdf", filename="texstyle-dtf-druckdatei.pdf")
 
 

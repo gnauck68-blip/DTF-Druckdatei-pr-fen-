@@ -58,6 +58,26 @@
     margin-top:14px; padding:12px 14px; border-radius:8px;
     background:var(--rot-bg); color:var(--rot); font-weight:600;
   }
+  .preflight-liste{list-style:none; margin:16px 0 0; padding:0; display:grid; gap:8px;}
+  .preflight-liste li{
+    display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:8px;
+    background:#f7f8f9; border:1px solid var(--line);
+  }
+  .punkt{
+    flex:0 0 auto; width:14px; height:14px; border-radius:50%; margin-top:3px;
+  }
+  .punkt.gruen{background:var(--gruen);}
+  .punkt.gelb{background:var(--gelb);}
+  .punkt.rot{background:var(--rot);}
+  .preflight-text strong{display:block; font-size:.9rem;}
+  .preflight-text span{color:var(--muted); font-size:.9rem;}
+  .download-btn{
+    display:inline-block; margin-top:16px; text-decoration:none; text-align:center;
+  }
+  .gesperrt-hinweis{
+    margin-top:16px; padding:14px 16px; border-radius:8px; font-weight:600;
+    background:var(--rot-bg); color:var(--rot);
+  }
 </style>
 </head>
 <body>
@@ -112,6 +132,19 @@
     <div id="ampel-ergebnis" class="ampel versteckt"></div>
   </section>
 
+  <section class="panel">
+    <h2>3. Druck-PDF erzeugen und prüfen</h2>
+    <p class="info-liste">Erzeugt die druckfertige PDF-Datei und prüft sie automatisch, bevor der Download freigegeben wird.</p>
+    <button id="erzeugen-btn" disabled>Druck-PDF erzeugen</button>
+    <div id="fehler-erzeugen" class="fehler versteckt"></div>
+    <ul id="preflight-liste" class="preflight-liste versteckt"></ul>
+    <a id="download-link" class="download-btn versteckt" href="#">PDF herunterladen</a>
+    <div id="gesperrt-hinweis" class="gesperrt-hinweis versteckt">
+      Der Download ist gesperrt, weil mindestens ein Prüfpunkt rot ist. Bitte oben die roten Punkte beheben
+      (z. B. ein größeres Bild verwenden) und die PDF-Datei neu erzeugen.
+    </div>
+  </section>
+
 </main>
 
 <script>
@@ -129,6 +162,11 @@
   const pruefenBtn = document.getElementById('pruefen-btn');
   const fehlerPruefung = document.getElementById('fehler-pruefung');
   const ampelErgebnis = document.getElementById('ampel-ergebnis');
+  const erzeugenBtn = document.getElementById('erzeugen-btn');
+  const fehlerErzeugen = document.getElementById('fehler-erzeugen');
+  const preflightListe = document.getElementById('preflight-liste');
+  const downloadLink = document.getElementById('download-link');
+  const gesperrtHinweis = document.getElementById('gesperrt-hinweis');
 
   let aktuelleUploadId = null;
 
@@ -188,6 +226,10 @@
     infoPixel.textContent = `${daten.breite_px} x ${daten.hoehe_px}`;
     vorschauBereich.classList.remove('versteckt');
     pruefenBtn.disabled = false;
+    erzeugenBtn.disabled = false;
+    preflightListe.classList.add('versteckt');
+    downloadLink.classList.add('versteckt');
+    gesperrtHinweis.classList.add('versteckt');
   }
 
   pruefenBtn.addEventListener('click', async () => {
@@ -220,6 +262,73 @@
     ampelErgebnis.className = 'ampel ' + daten.ampel;
     ampelErgebnis.textContent = daten.hinweis;
     ampelErgebnis.classList.remove('versteckt');
+  });
+
+  function zeigePreflight(punkte) {
+    preflightListe.innerHTML = '';
+    for (const punkt of punkte) {
+      const li = document.createElement('li');
+      const kreis = document.createElement('span');
+      kreis.className = 'punkt ' + punkt.ampel;
+      const text = document.createElement('div');
+      text.className = 'preflight-text';
+      const stark = document.createElement('strong');
+      stark.textContent = punkt.label;
+      const spanText = document.createElement('span');
+      spanText.textContent = punkt.hinweis;
+      text.appendChild(stark);
+      text.appendChild(spanText);
+      li.appendChild(kreis);
+      li.appendChild(text);
+      preflightListe.appendChild(li);
+    }
+    preflightListe.classList.remove('versteckt');
+  }
+
+  erzeugenBtn.addEventListener('click', async () => {
+    if (!aktuelleUploadId) return;
+    versteckeFehler(fehlerErzeugen);
+    downloadLink.classList.add('versteckt');
+    gesperrtHinweis.classList.add('versteckt');
+    preflightListe.classList.add('versteckt');
+    erzeugenBtn.disabled = true;
+    erzeugenBtn.textContent = 'PDF wird erzeugt …';
+
+    const formData = new FormData();
+    formData.append('upload_id', aktuelleUploadId);
+    formData.append('format_code', formatAuswahl.value);
+    if (formatAuswahl.value === 'CUSTOM') {
+      formData.append('breite_mm', freiBreite.value);
+      formData.append('hoehe_mm', freiHoehe.value);
+    }
+
+    let antwort;
+    try {
+      antwort = await fetch('/api/pdf-erzeugen', { method: 'POST', body: formData });
+    } catch (e) {
+      zeigeFehler(fehlerErzeugen, 'Die PDF-Erstellung ist fehlgeschlagen. Bitte erneut versuchen.');
+      erzeugenBtn.disabled = false;
+      erzeugenBtn.textContent = 'Druck-PDF erzeugen';
+      return;
+    }
+
+    const daten = await antwort.json().catch(() => ({}));
+    erzeugenBtn.disabled = false;
+    erzeugenBtn.textContent = 'Druck-PDF erzeugen';
+
+    if (!antwort.ok) {
+      zeigeFehler(fehlerErzeugen, daten.detail || 'Die PDF-Erstellung ist fehlgeschlagen.');
+      return;
+    }
+
+    zeigePreflight(daten.preflight.punkte);
+
+    if (daten.preflight.download_erlaubt) {
+      downloadLink.href = daten.download_url;
+      downloadLink.classList.remove('versteckt');
+    } else {
+      gesperrtHinweis.classList.remove('versteckt');
+    }
   });
 })();
 </script>

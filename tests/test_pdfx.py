@@ -67,8 +67,16 @@ def test_fehlt_icc_profil_bricht_export_klar_ab(tmp_path: Path, monkeypatch):
 def test_gerastertes_pdf_hat_hoechstens_300_prozent_farbauftrag(tmp_path: Path):
     """End-to-End: ein künstlich auf 400% gesetztes CMYK-Bild darf im fertigen
     PDF nicht mehr über 300% liegen (Messung direkt aus den PDF-Bilddaten,
-    wie auch scripts/verify_pdfx.py es tut)."""
-    arr = np.full((30, 30, 4), 255, dtype=np.uint8)
+    wie auch scripts/verify_pdfx.py es tut).
+
+    Hinweis: Ghostscript bettet sehr kleine Bilder (unter ca. 40x40 px) als
+    Inline-Image direkt im Content-Stream statt als separates Image-XObject
+    ein. Da echte Fotos immer deutlich größer sind, wird hier bewusst ein
+    Testbild von 60x60 px mit leichter Variation verwendet, damit ein
+    reguläres, auslesbares Image-XObject entsteht.
+    """
+    rng = np.random.default_rng(0)
+    arr = rng.integers(250, 256, size=(60, 60, 4)).astype(np.uint8)  # nahe 400%, leicht variiert
     hoher_auftrag_cmyk = Image.fromarray(arr, mode="CMYK")
 
     original = color.convert_to_cmyk
@@ -76,24 +84,27 @@ def test_gerastertes_pdf_hat_hoechstens_300_prozent_farbauftrag(tmp_path: Path):
         color.convert_to_cmyk = lambda img: hoher_auftrag_cmyk
         fmt = resolve_format("A6")
         output = tmp_path / "hoch.pdf"
-        pdfx.export_pdfx(Image.new("RGB", (30, 30)), fmt, output)
+        pdfx.export_pdfx(Image.new("RGB", (60, 60)), fmt, output)
     finally:
         color.convert_to_cmyk = original
 
     with pikepdf.open(output) as pdf:
-        max_wert = 0.0
+        max_wert = None
         for obj in pdf.objects:
             if hasattr(obj, "get") and str(obj.get("/Subtype", "")) == "/Image":
                 width = int(obj.get("/Width"))
                 height = int(obj.get("/Height"))
                 rohbytes = obj.read_bytes()
                 bild = np.frombuffer(rohbytes, dtype=np.uint8).reshape(height, width, 4).astype(np.float32)
-                max_wert = max(max_wert, float((bild.sum(axis=2) / 255.0 * 100.0).max()))
+                wert = float((bild.sum(axis=2) / 255.0 * 100.0).max())
+                max_wert = wert if max_wert is None else max(max_wert, wert)
+    assert max_wert is not None, "Kein Image-XObject im PDF gefunden, Test hätte nichts geprüft."
     assert max_wert <= 300.0
 
 
 def test_verify_pdfx_skript_meldet_pass(tmp_path: Path):
-    img = Image.new("RGB", (400, 566), (100, 100, 20))
+    # A6 bei >= 300 dpi, damit die Auflösungs-Ampel im Preflight nicht rot ist.
+    img = Image.new("RGB", (1300, 1800), (100, 100, 20))
     fmt = resolve_format("A6")
     output = tmp_path / "verify_test.pdf"
     pdfx.export_pdfx(img, fmt, output)
