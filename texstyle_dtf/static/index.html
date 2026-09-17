@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TexStyle DTF</title>
+<style>
+  :root{
+    --bg:#f2f3f5; --panel:#ffffff; --ink:#16181a; --muted:#5c646c;
+    --accent:#0a5fb4; --line:#d9dde1;
+    --gruen:#1e8a4a; --gelb:#9a6c00; --rot:#c0272d;
+    --gruen-bg:#e6f4ec; --gelb-bg:#fdf3d8; --rot-bg:#fbe8e8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.5;
+  }
+  header{padding:24px 20px 8px; max-width:820px; margin:0 auto;}
+  header h1{margin:0; font-size:1.6rem; font-weight:700;}
+  header p{margin:6px 0 0; color:var(--muted);}
+  main{max-width:820px; margin:0 auto; padding:16px 20px 60px; display:grid; gap:20px;}
+  section.panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:20px;
+  }
+  h2{margin:0 0 12px; font-size:1.1rem;}
+  .drop{
+    border:2px dashed var(--line); border-radius:10px; padding:28px;
+    text-align:center; color:var(--muted); cursor:pointer;
+  }
+  .drop.hover{border-color:var(--accent); color:var(--accent);}
+  input[type=file]{display:none;}
+  .vorschau-bereich{display:flex; gap:16px; align-items:flex-start; margin-top:14px; flex-wrap:wrap;}
+  .vorschau-bereich img{max-width:220px; max-height:220px; border:1px solid var(--line); border-radius:6px;}
+  .info-liste{font-size:.95rem; color:var(--muted);}
+  label{display:block; font-weight:600; margin-bottom:4px; font-size:.92rem;}
+  select, input[type=number]{
+    padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:1rem;
+    width:100%;
+  }
+  .format-zeile{display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:14px;}
+  .frei-felder{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .versteckt{display:none !important;}
+  button{
+    background:var(--accent); color:#fff; border:none; border-radius:6px;
+    padding:10px 18px; font-size:1rem; cursor:pointer;
+  }
+  button:disabled{background:#a9b3bc; cursor:not-allowed;}
+  .ampel{
+    margin-top:16px; padding:14px 16px; border-radius:8px; font-weight:600;
+  }
+  .ampel.gruen{background:var(--gruen-bg); color:var(--gruen);}
+  .ampel.gelb{background:var(--gelb-bg); color:var(--gelb);}
+  .ampel.rot{background:var(--rot-bg); color:var(--rot);}
+  .fehler{
+    margin-top:14px; padding:12px 14px; border-radius:8px;
+    background:var(--rot-bg); color:var(--rot); font-weight:600;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>TexStyle DTF</h1>
+  <p>Bild hochladen, Format wählen, Druckqualität prüfen.</p>
+</header>
+<main>
+
+  <section class="panel">
+    <h2>1. Bild hochladen</h2>
+    <div class="drop" id="drop">
+      Bild hier ablegen oder klicken zum Auswählen<br>
+      <small>JPG, PNG oder WebP, maximal 50 MB</small>
+      <input type="file" id="datei-input" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+    </div>
+    <div id="fehler-upload" class="fehler versteckt"></div>
+    <div class="vorschau-bereich versteckt" id="vorschau-bereich">
+      <img id="vorschau-bild" alt="Vorschau des hochgeladenen Bildes">
+      <div class="info-liste">
+        <div>Bildgröße: <span id="info-pixel"></span> Pixel</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Format wählen</h2>
+    <div class="format-zeile">
+      <div>
+        <label for="format-auswahl">Endformat</label>
+        <select id="format-auswahl">
+          <option value="A6">A6 (105 x 148 mm)</option>
+          <option value="A5">A5 (148 x 210 mm)</option>
+          <option value="A4" selected>A4 (210 x 297 mm)</option>
+          <option value="A3">A3 (297 x 420 mm)</option>
+          <option value="CUSTOM">Freies Format (mm)</option>
+        </select>
+      </div>
+      <div class="frei-felder versteckt" id="frei-felder">
+        <div>
+          <label for="frei-breite">Breite (mm)</label>
+          <input type="number" id="frei-breite" min="10" max="3000" step="1" value="210">
+        </div>
+        <div>
+          <label for="frei-hoehe">Höhe (mm)</label>
+          <input type="number" id="frei-hoehe" min="10" max="3000" step="1" value="297">
+        </div>
+      </div>
+    </div>
+    <button id="pruefen-btn" disabled>Auflösung prüfen</button>
+    <div id="fehler-pruefung" class="fehler versteckt"></div>
+    <div id="ampel-ergebnis" class="ampel versteckt"></div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  const dropZone = document.getElementById('drop');
+  const dateiInput = document.getElementById('datei-input');
+  const fehlerUpload = document.getElementById('fehler-upload');
+  const vorschauBereich = document.getElementById('vorschau-bereich');
+  const vorschauBild = document.getElementById('vorschau-bild');
+  const infoPixel = document.getElementById('info-pixel');
+  const formatAuswahl = document.getElementById('format-auswahl');
+  const freiFelder = document.getElementById('frei-felder');
+  const freiBreite = document.getElementById('frei-breite');
+  const freiHoehe = document.getElementById('frei-hoehe');
+  const pruefenBtn = document.getElementById('pruefen-btn');
+  const fehlerPruefung = document.getElementById('fehler-pruefung');
+  const ampelErgebnis = document.getElementById('ampel-ergebnis');
+
+  let aktuelleUploadId = null;
+
+  function zeigeFehler(el, text) {
+    el.textContent = text;
+    el.classList.remove('versteckt');
+  }
+  function versteckeFehler(el) {
+    el.classList.add('versteckt');
+  }
+
+  dropZone.addEventListener('click', () => dateiInput.click());
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('hover');
+    if (e.dataTransfer.files.length > 0) {
+      hochladen(e.dataTransfer.files[0]);
+    }
+  });
+  dateiInput.addEventListener('change', () => {
+    if (dateiInput.files.length > 0) {
+      hochladen(dateiInput.files[0]);
+    }
+  });
+
+  formatAuswahl.addEventListener('change', () => {
+    freiFelder.classList.toggle('versteckt', formatAuswahl.value !== 'CUSTOM');
+  });
+
+  async function hochladen(datei) {
+    versteckeFehler(fehlerUpload);
+    ampelErgebnis.classList.add('versteckt');
+    pruefenBtn.disabled = true;
+    aktuelleUploadId = null;
+
+    const formData = new FormData();
+    formData.append('datei', datei);
+
+    let antwort;
+    try {
+      antwort = await fetch('/api/upload', { method: 'POST', body: formData });
+    } catch (e) {
+      zeigeFehler(fehlerUpload, 'Der Upload ist fehlgeschlagen. Bitte erneut versuchen.');
+      return;
+    }
+
+    const daten = await antwort.json().catch(() => ({}));
+    if (!antwort.ok) {
+      zeigeFehler(fehlerUpload, daten.detail || 'Der Upload ist fehlgeschlagen.');
+      return;
+    }
+
+    aktuelleUploadId = daten.upload_id;
+    vorschauBild.src = daten.vorschau_url;
+    infoPixel.textContent = `${daten.breite_px} x ${daten.hoehe_px}`;
+    vorschauBereich.classList.remove('versteckt');
+    pruefenBtn.disabled = false;
+  }
+
+  pruefenBtn.addEventListener('click', async () => {
+    if (!aktuelleUploadId) return;
+    versteckeFehler(fehlerPruefung);
+    ampelErgebnis.classList.add('versteckt');
+
+    const formData = new FormData();
+    formData.append('upload_id', aktuelleUploadId);
+    formData.append('format_code', formatAuswahl.value);
+    if (formatAuswahl.value === 'CUSTOM') {
+      formData.append('breite_mm', freiBreite.value);
+      formData.append('hoehe_mm', freiHoehe.value);
+    }
+
+    let antwort;
+    try {
+      antwort = await fetch('/api/aufloesung-pruefen', { method: 'POST', body: formData });
+    } catch (e) {
+      zeigeFehler(fehlerPruefung, 'Die Prüfung ist fehlgeschlagen. Bitte erneut versuchen.');
+      return;
+    }
+
+    const daten = await antwort.json().catch(() => ({}));
+    if (!antwort.ok) {
+      zeigeFehler(fehlerPruefung, daten.detail || 'Die Prüfung ist fehlgeschlagen.');
+      return;
+    }
+
+    ampelErgebnis.className = 'ampel ' + daten.ampel;
+    ampelErgebnis.textContent = daten.hinweis;
+    ampelErgebnis.classList.remove('versteckt');
+  });
+})();
+</script>
+</body>
+</html>
