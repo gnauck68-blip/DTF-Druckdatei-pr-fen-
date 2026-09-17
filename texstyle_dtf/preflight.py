@@ -247,7 +247,7 @@ def _pruefe_dateigroesse(pfad: Path) -> PreflightItem:
     if not pfad.is_file() or pfad.stat().st_size == 0:
         return PreflightItem("dateigroesse", "Dateigröße", "rot", "Die Datei ist leer oder fehlt.")
     groesse_mb = pfad.stat().st_size / (1024 * 1024)
-    return PreflightItem("dateigroesse", "Dateigröße", "gruen", f"Dateigröße: {groesse_mb:.1f} MB.")
+    return PreflightItem("dateigroesse", "Dateigröße", "gruen", f"{groesse_mb:.1f} MB.")
 
 
 def run_preflight(pdf_path: Path) -> PreflightReport:
