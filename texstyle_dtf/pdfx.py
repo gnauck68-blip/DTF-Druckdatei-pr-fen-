@@ -307,6 +307,21 @@ def _run_ghostscript(source_pdf: Path, pdfx_def: Path, output_pdf: Path, icc_pro
         "-dSubsetFonts=true",
         "-dAutoRotatePages=/None",
         "-dPDFACompatibilityPolicy=1",
+        # Ohne diese Schalter wählt Ghostscript bei detailreichen Bildern von
+        # sich aus eine verlustbehaftete JPEG-Komprimierung (DCTDecode) statt
+        # der unkomprimierten Bilddaten. Das würde nicht nur die
+        # Farbauftragsmessung verhindern (DCTDecode-Daten sind ohne
+        # JPEG-Dekodierung nicht auslesbar), sondern könnte durch
+        # JPEG-Kompressionsartefakte auch den Farbauftrag einzelner Pixel
+        # unbemerkt über die 300%-Grenze heben. Bilddaten müssen deshalb
+        # unverändert (verlustfrei) übernommen werden.
+        "-dAutoFilterColorImages=false",
+        "-dColorImageFilter=/FlateEncode",
+        "-dAutoFilterGrayImages=false",
+        "-dGrayImageFilter=/FlateEncode",
+        "-dDownsampleColorImages=false",
+        "-dDownsampleGrayImages=false",
+        "-dDownsampleMonoImages=false",
         f"-sOutputFile={output_pdf}",
         str(pdfx_def),
         str(source_pdf),
