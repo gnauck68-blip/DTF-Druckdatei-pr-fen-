@@ -55,7 +55,21 @@ MARK_LINIENBREITE_PT = 0.5
 # Zusätzlicher Sicherheitsrand um die Marken herum, damit nichts abgeschnitten wird.
 SEITENRAND_PUFFER_MM = 2.0
 
-GS_BINARY = shutil.which("gs")
+def _finde_ghostscript() -> str | None:
+    """Sucht das Ghostscript-Kommandozeilenprogramm plattformunabhängig.
+
+    Unter Linux/macOS heißt es "gs", unter Windows meist "gswin64c" (64-Bit)
+    oder "gswin32c" (32-Bit) – ein bloßes "gs" existiert dort in der Regel
+    nicht, auch wenn Ghostscript korrekt installiert ist.
+    """
+    for kandidat in ("gs", "gswin64c", "gswin32c"):
+        pfad = shutil.which(kandidat)
+        if pfad is not None:
+            return pfad
+    return None
+
+
+GS_BINARY = _finde_ghostscript()
 
 
 class GhostscriptNotFoundError(RuntimeError):
@@ -270,7 +284,8 @@ def _write_pdfx_def_ps(path: Path, icc_profile_path: str, profile_description: s
 def _run_ghostscript(source_pdf: Path, pdfx_def: Path, output_pdf: Path, icc_profile_path: str) -> None:
     if GS_BINARY is None:
         raise GhostscriptNotFoundError(
-            "Ghostscript (gs) wurde nicht gefunden. Ohne Ghostscript kann keine PDF/X-Datei erzeugt werden."
+            "Ghostscript wurde nicht gefunden (weder \"gs\" noch \"gswin64c\"/\"gswin32c\" im "
+            "Systempfad). Ohne Ghostscript kann keine PDF/X-Datei erzeugt werden."
         )
 
     cmd = [
