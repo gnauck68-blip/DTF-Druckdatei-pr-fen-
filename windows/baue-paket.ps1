@@ -39,7 +39,7 @@ New-Item -ItemType Directory -Force $Programm | Out-Null
 try {
     Schritt "Python $PythonVersion (embeddable) laden"
     $pyZip = Join-Path $Temp 'python.zip'
-    Invoke-WebRequest "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip" -OutFile $pyZip
+    Invoke-WebRequest "https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-embed-amd64.zip" -OutFile $pyZip -TimeoutSec 300
     $pyDir = Join-Path $Programm 'python'
     Expand-Archive $pyZip -DestinationPath $pyDir
     # Suchpfade des mitgelieferten Python: Standardbibliothek, Bibliotheken, App
@@ -58,24 +58,50 @@ try {
     if (-not $GhostscriptSetup) {
         $kopf = @{ 'User-Agent' = 'texstyle-dtf-paket' }
         if ($env:GITHUB_TOKEN) { $kopf.Authorization = "Bearer $env:GITHUB_TOKEN" }
-        $release = Invoke-RestMethod 'https://api.github.com/repos/ArtifexSoftware/ghostpdl-downloads/releases/latest' -Headers $kopf
+        $release = Invoke-RestMethod 'https://api.github.com/repos/ArtifexSoftware/ghostpdl-downloads/releases/latest' -Headers $kopf -TimeoutSec 60
         $datei = $release.assets | Where-Object { $_.name -match '^gs\d+w64\.exe$' } | Select-Object -First 1
         if (-not $datei) { throw "Im Ghostscript-Release $($release.tag_name) fehlt der Installer gs...w64.exe." }
         Write-Host "Ghostscript $($release.tag_name): $($datei.name)"
         $GhostscriptSetup = Join-Path $Temp $datei.name
-        Invoke-WebRequest $datei.browser_download_url -OutFile $GhostscriptSetup -Headers @{ 'User-Agent' = 'texstyle-dtf-paket' }
+        Invoke-WebRequest $datei.browser_download_url -OutFile $GhostscriptSetup -Headers @{ 'User-Agent' = 'texstyle-dtf-paket' } -TimeoutSec 600
     }
-    $gsInstalliert = Join-Path $Temp 'gs'
-    # NSIS-Installer: /S = ohne Fenster, /D = Zielordner (muss der letzte Parameter sein, ohne Anführungszeichen)
-    $lauf = Start-Process $GhostscriptSetup -ArgumentList '/S', "/D=$gsInstalliert" -Wait -PassThru
-    if ($lauf.ExitCode -ne 0) { throw "Der Ghostscript-Installer endete mit Code $($lauf.ExitCode)." }
-    if (-not (Test-Path (Join-Path $gsInstalliert 'bin\gswin64c.exe'))) { throw 'Nach der Installation fehlt bin\gswin64c.exe.' }
     $gsZiel = Join-Path $Programm 'ghostscript'
-    Copy-Item $gsInstalliert $gsZiel -Recurse
+    $siebenZip = @(
+        (Get-Command 7z.exe -ErrorAction SilentlyContinue | ForEach-Object Source),
+        (Join-Path $env:ProgramFiles '7-Zip\7z.exe')
+    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    if ($siebenZip) {
+        # Bevorzugt: den NSIS-Installer nur auspacken. Das braucht keine
+        # Administratorrechte und kann nicht hängen (der stille Installer blieb
+        # auf GitHub Actions 30 Minuten stehen).
+        Write-Host "Ghostscript mit 7-Zip auspacken ($siebenZip)"
+        & $siebenZip x $GhostscriptSetup "-o$gsZiel" -y | Out-Null
+        if ($LASTEXITCODE) { throw "7-Zip konnte den Ghostscript-Installer nicht auspacken (Code $LASTEXITCODE)." }
+        Remove-Item -Recurse -Force (Join-Path $gsZiel '$PLUGINSDIR') -ErrorAction SilentlyContinue
+    } else {
+        # Ohne 7-Zip: still installieren, aber höchstens 5 Minuten warten.
+        # NSIS: /S = ohne Fenster, /D = Zielordner (letzter Parameter, ohne Anführungszeichen)
+        $gsInstalliert = Join-Path $Temp 'gs'
+        $lauf = Start-Process $GhostscriptSetup -ArgumentList '/S', "/D=$gsInstalliert" -PassThru
+        if (-not $lauf.WaitForExit(300000)) {
+            $lauf.Kill()
+            throw 'Der Ghostscript-Installer hat sich nach 5 Minuten nicht beendet. Tipp: 7-Zip installieren, dann wird nur ausgepackt.'
+        }
+        if ($lauf.ExitCode -ne 0) { throw "Der Ghostscript-Installer endete mit Code $($lauf.ExitCode)." }
+        Copy-Item $gsInstalliert $gsZiel -Recurse
+        # Die Installation auf dem Bau-Rechner wieder entfernen, das Paket hat seine eigene Kopie
+        $deinstaller = Get-ChildItem $gsInstalliert -Filter 'uninst*.exe' | Select-Object -First 1
+        if ($deinstaller) {
+            $weg = Start-Process $deinstaller.FullName -ArgumentList '/S' -PassThru
+            [void]$weg.WaitForExit(120000)
+        }
+    }
     Get-ChildItem $gsZiel -Filter 'uninst*.exe' | Remove-Item -Force
-    # Die Installation auf dem Bau-Rechner wieder entfernen, das Paket hat seine eigene Kopie
-    $deinstaller = Get-ChildItem $gsInstalliert -Filter 'uninst*.exe' | Select-Object -First 1
-    if ($deinstaller) { Start-Process $deinstaller.FullName -ArgumentList '/S' -Wait }
+    if (-not (Test-Path (Join-Path $gsZiel 'bin\gswin64c.exe'))) {
+        Write-Host 'Inhalt des Ghostscript-Ordners:'
+        Get-ChildItem $gsZiel | ForEach-Object { Write-Host "  $($_.Name)" }
+        throw 'Im Ghostscript-Ordner fehlt bin\gswin64c.exe.'
+    }
 
     Schritt 'App und Startdateien kopieren'
     $appDir = Join-Path $Programm 'app'
@@ -92,7 +118,11 @@ try {
     # Nur für den Test: das Beispielprofil von Ghostscript. Im Betrieb nimmt die
     # Startdatei das Profil aus dem Ordner "profil".
     $testProfil = Get-ChildItem $gsZiel -Recurse -Filter 'default_cmyk.icc' | Select-Object -First 1
-    if (-not $testProfil) { throw 'Für den Test fehlt default_cmyk.icc im Ghostscript-Ordner.' }
+    if (-not $testProfil) {
+        $testProfil = Get-ChildItem $gsZiel -Recurse -Include '*cmyk*.icc' | Select-Object -First 1
+    }
+    if (-not $testProfil) { throw 'Für den Test fehlt ein CMYK-Profil (default_cmyk.icc) im Ghostscript-Ordner.' }
+    Write-Host "Testprofil: $($testProfil.FullName)"
     $env:TEXSTYLE_GS = Join-Path $gsZiel 'bin\gswin64c.exe'
     $env:TEXSTYLE_ICC_CMYK = $testProfil.FullName
     $env:PYTHONIOENCODING = 'utf-8'
