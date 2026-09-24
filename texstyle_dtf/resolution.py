@@ -39,17 +39,17 @@ def check_resolution(pixel_width: int, pixel_height: int, width_mm: float, heigh
     if dpi_gerundet < DPI_ERROR_THRESHOLD:
         ampel = "rot"
         hinweis = (
-            f"Auflösung zu niedrig: {dpi_effective:.0f} dpi im Endformat. "
+            f"Auflösung zu niedrig: {dpi_effective:.0f} dpi in dieser Druckgröße. "
             f"Unter {DPI_ERROR_THRESHOLD} dpi ist der Druck deutlich unscharf."
         )
     elif dpi_gerundet < DPI_WARN_THRESHOLD:
         ampel = "gelb"
         hinweis = (
-            f"Auflösung grenzwertig: {dpi_effective:.0f} dpi im Endformat. "
+            f"Auflösung grenzwertig: {dpi_effective:.0f} dpi in dieser Druckgröße. "
             f"Empfohlen sind mindestens {DPI_WARN_THRESHOLD} dpi."
         )
     else:
         ampel = "gruen"
-        hinweis = f"Auflösung ausreichend: {dpi_effective:.0f} dpi im Endformat."
+        hinweis = f"Auflösung ausreichend: {dpi_effective:.0f} dpi in dieser Druckgröße."
 
     return ResolutionCheck(dpi_x=dpi_x, dpi_y=dpi_y, dpi_effective=dpi_effective, ampel=ampel, hinweis=hinweis)

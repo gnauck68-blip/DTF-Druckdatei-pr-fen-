@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
 from .config import ALLOWED_UPLOAD_CONTENT_TYPES, MAX_BILD_PIXEL, MAX_UPLOAD_BYTES, UPLOAD_DIR
 
@@ -32,6 +32,7 @@ class StoredUpload:
     width_px: int
     height_px: int
     content_type: str
+    rand_entfernt: bool = False
 
 
 def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
@@ -81,8 +82,10 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
         with Image.open(io.BytesIO(raw_bytes)) as original:
             # Handyfotos stehen oft nur per EXIF-Angabe aufrecht; vor dem
             # Verwerfen der Metadaten die Drehung auf die Pixel anwenden.
+            eigenes_profil = original.info.get("icc_profile")
             bild = ImageOps.exif_transpose(original)
-            bild = bild.convert("RGBA" if _hat_transparenz(bild) else "RGB")
+            bild = _nach_srgb(bild, eigenes_profil)
+            bild, rand_entfernt = _leeren_rand_abschneiden(bild)
             bild.info = {}
             bild.save(stored_path, format="PNG")
             width_px, height_px = bild.size
@@ -104,7 +107,68 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
         width_px=width_px,
         height_px=height_px,
         content_type=content_type,
+        rand_entfernt=rand_entfernt,
     )
+
+
+_SRGB = ImageCms.createProfile("sRGB")
+
+# Alpha bis zu diesem Wert zählt beim Zuschneiden als leer (unsichtbare Reste)
+_LEER_ALPHA = 16
+
+
+def _nach_srgb(bild: Image.Image, eigenes_profil: bytes | None) -> Image.Image:
+    """Liefert RGB bzw. RGBA in sRGB.
+
+    Die App gibt sRGB an den RIP weiter, der mit seinem Druckerprofil umrechnet.
+    Hat das Bild ein eigenes Profil (z. B. Adobe RGB oder ein CMYK-JPEG), werden
+    die Farben darum hier farbrichtig nach sRGB umgerechnet. Ohne Profil gilt,
+    wie im Web üblich, sRGB.
+    """
+    transparent = _hat_transparenz(bild)
+    ziel_modus = "RGBA" if transparent else "RGB"
+    if eigenes_profil:
+        try:
+            alpha = bild.convert("RGBA").getchannel("A") if transparent else None
+            if bild.mode in ("L", "LA", "I;16", "I"):
+                basis = bild.convert("L")
+            elif bild.mode == "CMYK":
+                basis = bild
+            else:
+                basis = bild.convert("RGB")
+            umrechnung = ImageCms.buildTransform(
+                ImageCms.ImageCmsProfile(io.BytesIO(eigenes_profil)),
+                _SRGB,
+                basis.mode,
+                "RGB",
+                renderingIntent=ImageCms.Intent.RELATIVE_COLORIMETRIC,
+                flags=ImageCms.Flags.BLACKPOINTCOMPENSATION,
+            )
+            ergebnis = ImageCms.applyTransform(basis, umrechnung)
+            if alpha is not None:
+                ergebnis.putalpha(alpha)
+            return ergebnis
+        except (ImageCms.PyCMSError, OSError, ValueError):
+            logger.error("Eingebettetes Farbprofil ist unbrauchbar; das Bild wird als sRGB behandelt.")
+    return bild.convert(ziel_modus)
+
+
+def _leeren_rand_abschneiden(bild: Image.Image) -> tuple[Image.Image, bool]:
+    """Schneidet durchsichtige Ränder ab (mit 2 px Sicherheitsrand).
+
+    Leerer Rand kostet im DTF-Druck Folie und verfälscht die Druckgröße.
+    """
+    if bild.mode != "RGBA":
+        return bild, False
+    sichtbar = bild.getchannel("A").point(lambda a: 255 if a > _LEER_ALPHA else 0)
+    kasten = sichtbar.getbbox()
+    if kasten is None:
+        return bild, False  # ganz durchsichtig: nichts zu schneiden
+    links, oben, rechts, unten = kasten
+    kasten = (max(0, links - 2), max(0, oben - 2), min(bild.width, rechts + 2), min(bild.height, unten + 2))
+    if kasten == (0, 0, bild.width, bild.height):
+        return bild, False
+    return bild.crop(kasten), True
 
 
 def _hat_transparenz(bild: Image.Image) -> bool:

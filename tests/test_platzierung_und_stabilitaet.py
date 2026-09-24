@@ -107,12 +107,13 @@ def _hochladen(client, img: Image.Image) -> dict:
 
 
 def test_vorschau_behaelt_transparenz(client):
-    img = Image.new("RGBA", (400, 300), (0, 0, 0, 0))
-    img.paste((220, 0, 0, 255), (100, 100, 300, 200))
+    # Roter Rahmen mit durchsichtiger Mitte (der Rand außen wird beim Hochladen abgeschnitten)
+    img = Image.new("RGBA", (400, 300), (220, 0, 0, 255))
+    img.paste((0, 0, 0, 0), (100, 100, 300, 200))
     daten = _hochladen(client, img)
     vorschau = Image.open(io.BytesIO(client.get(daten["vorschau_url"]).content))
     assert vorschau.mode == "RGBA"
-    assert vorschau.getpixel((0, 0))[3] == 0
+    assert vorschau.getpixel((vorschau.width // 2, vorschau.height // 2))[3] == 0
 
 
 def test_zu_viele_pixel_ergeben_verstaendliche_meldung(client, monkeypatch):

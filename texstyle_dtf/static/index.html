@@ -236,7 +236,7 @@
       <h2 id="titel-3">Druck-Datei machen</h2>
       <svg class="symbol" aria-hidden="true"><use href="#i-drucken"/></svg>
     </div>
-    <p id="text-3">Drück auf den Knopf. Die App macht die Datei und prüft sie.</p>
+    <p id="text-3">Drück auf den Knopf. Die App macht die Datei für den Drucker und prüft sie.</p>
     <button type="button" class="gross-knopf" id="machen-btn" disabled>
       <svg aria-hidden="true"><use href="#i-drucken"/></svg>Druck-Datei machen
     </button>
@@ -271,25 +271,19 @@
     <h3>Bild ins Format setzen</h3>
     <div class="auswahl" role="radiogroup" aria-label="Bild ins Format setzen">
       <label><input type="radio" name="anpassung" value="einpassen" checked>
-        <span><b>Einpassen</b> (Standard): Das ganze Bild ist zu sehen, nichts wird abgeschnitten. Es kann ein freier Rand bleiben.</span></label>
+        <span><b>Einpassen</b> (Standard): Das ganze Motiv passt in die Größe, nichts wird abgeschnitten. Die Datei ist so groß wie das Motiv.</span></label>
       <label><input type="radio" name="anpassung" value="fuellen">
-        <span><b>Randlos füllen</b>: Das Bild füllt Format und 3 mm Anschnitt. Was übersteht, wird abgeschnitten.</span></label>
+        <span><b>Fläche füllen</b>: Das Motiv füllt die Größe ganz aus. Was übersteht, wird mittig abgeschnitten.</span></label>
     </div>
 
-    <details>
-      <summary>DTF-Modul: Farbfilm und Weißplatte</summary>
-      <p class="fach">Rastert den Farbfilm und berechnet die weiße Unterdruckschicht. Die Filmgröße ergibt sich aus den Bildpixeln bei 300 dpi.</p>
-      <div class="feld"><label for="dtf-lpi">Rasterweite (Linien pro Zoll)</label><input type="number" id="dtf-lpi" min="10" max="150" step="1" value="45"><small>10 bis 150. Kleiner = gröbere Punkte.</small></div>
-      <div class="feld"><label for="dtf-winkel">Rasterwinkel (Grad)</label><input type="number" id="dtf-winkel" min="0" max="90" step="0.5" value="22.5"><small>0 bis 90.</small></div>
-      <div class="feld"><label for="dtf-knockout">Knockout-Schwelle</label><input type="number" id="dtf-knockout" min="0" max="255" step="1" value="240"><small>0 bis 255. Pixel heller als dieser Wert bekommen kein Weiß.</small></div>
-      <button type="button" id="dtf-btn" disabled>DTF-Dateien erzeugen</button>
-      <div id="status-dtf" aria-live="polite"></div>
-      <div class="links versteckt" id="dtf-links">
-        <a class="knopf" id="dtf-farbfilm-link" href="#" download><svg aria-hidden="true"><use href="#i-speichern"/></svg>Farbfilm (PNG) speichern</a>
-        <a class="knopf" id="dtf-weissplatte-link" href="#" download><svg aria-hidden="true"><use href="#i-speichern"/></svg>Weißplatte (PNG) speichern</a>
-        <a class="knopf" id="dtf-pdf-link" href="#" download><svg aria-hidden="true"><use href="#i-speichern"/></svg>Vorschau-PDF speichern</a>
-      </div>
-    </details>
+    <h3>Kanten</h3>
+    <div class="auswahl">
+      <label><input type="checkbox" id="kanten-haerten" checked>
+        <span><b>Kanten hart machen</b> (empfohlen): Halb durchsichtige Pixel werden ganz sichtbar oder ganz durchsichtig. So legt der RIP die Weißunterlage sauber an.</span></label>
+    </div>
+
+    <h3>Was die App macht und was der RIP macht</h3>
+    <p class="fach">Die App liefert ein PNG in RGB mit sRGB-Profil, mit durchsichtigem Hintergrund, exakt in Druckgröße bei 300 dpi. Farbumrechnung mit dem Druckerprofil, Rasterung und Weißunterlage macht der RIP des Druckers. Darum rechnet die App keine Farben in CMYK um.</p>
   </details>
 
 </main>
@@ -406,7 +400,7 @@
     }
     zustand.uploadId = daten.upload_id;
     $('vorschau-bild').src = daten.vorschau_url;
-    $('bild-info').textContent = 'Bildgröße: ' + daten.breite_px + ' × ' + daten.hoehe_px + ' Pixel';
+    $('bild-info').textContent = 'Bildgröße: ' + daten.breite_px + ' × ' + daten.hoehe_px + ' Pixel' + (daten.rand_entfernt ? ' (leerer Rand entfernt)' : '');
     $('vorschau').classList.remove('versteckt');
     zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da. Jetzt bei Schritt 2 die Größe wählen.');
     schritteFreigeben();
@@ -423,10 +417,12 @@
     const code = formatGewaehlt();
     const f = { upload_id: zustand.uploadId, format_code: code, anpassung: document.querySelector('input[name=anpassung]:checked').value };
     if (code === 'CUSTOM') { f.breite_mm = $('frei-breite').value; f.hoehe_mm = $('frei-hoehe').value; }
+    f.kanten_haerten = $('kanten-haerten').checked ? 'true' : 'false';
     return f;
   }
   document.querySelectorAll('input[name=format]').forEach((r) => r.addEventListener('change', () => { $('frei-an').checked = false; eingabeGeaendert(); }));
   document.querySelectorAll('input[name=anpassung]').forEach((r) => r.addEventListener('change', eingabeGeaendert));
+  $('kanten-haerten').addEventListener('change', ergebnisZuruecksetzen);
   $('frei-an').addEventListener('change', () => {
     if ($('frei-an').checked) document.querySelectorAll('input[name=format]').forEach((r) => { r.checked = false; });
     eingabeGeaendert();
@@ -454,7 +450,8 @@
     const { ok, daten } = await senden('/api/aufloesung-pruefen', formatFelder());
     if (nr !== zustand.pruefNr) return; // inzwischen neu gewählt
     if (!ok) { zeigeStatus($('status-2'), 'rot', fehlerSatz('Die Größe geht so nicht.', daten), true); return; }
-    zeigeStatus($('status-2'), daten.ampel, PRUEF_SATZ[daten.ampel] + ' (' + Math.round(daten.dpi_effektiv) + ' dpi)');
+    const cm = (mm) => (mm / 10).toFixed(1).replace('.', ',');
+    zeigeStatus($('status-2'), daten.ampel, PRUEF_SATZ[daten.ampel] + ' Druckgröße: ' + cm(daten.druckgroesse_mm.breite) + ' × ' + cm(daten.druckgroesse_mm.hoehe) + ' cm (' + Math.round(daten.dpi_effektiv) + ' dpi).');
   }
 
   // ---------- Schritt 3: Druck-Datei ----------
@@ -474,15 +471,23 @@
     $('frei-breite').disabled = !bild || !$('frei-an').checked;
     $('frei-hoehe').disabled = !bild || !$('frei-an').checked;
     machenBtn.disabled = !format;
-    $('dtf-btn').disabled = !bild;
   }
 
-  const LABEL_EINFACH = { aufloesung: 'Das Bild ist zu klein für diese Größe.' };
+  // Einfache Sätze zu den Prüfpunkten, für Stopp und Achtung
+  const LABEL_EINFACH = {
+    aufloesung: { rot: 'Das Bild ist zu klein für diese Größe.', gelb: 'Das Bild wird etwas unscharf.' },
+    hintergrund: { gelb: 'Das Bild hat keinen durchsichtigen Hintergrund. Das ganze Rechteck wird gedruckt.' },
+    halbtransparenz: { gelb: 'Das Bild hat weiche Kanten.' },
+  };
+  function einfacheGruende(punkte, ampel) {
+    return punkte.filter((x) => x.ampel === ampel && LABEL_EINFACH[x.schluessel] && LABEL_EINFACH[x.schluessel][ampel])
+      .map((x) => LABEL_EINFACH[x.schluessel][ampel]).join(' ');
+  }
   machenBtn.addEventListener('click', async () => {
     ergebnisZuruecksetzen();
     machenBtn.disabled = true;
     zeigeStatus($('status-3'), 'warten', 'Die Druck-Datei wird gemacht. Das kann eine Minute dauern.');
-    const { ok, daten } = await senden('/api/pdf-erzeugen', formatFelder());
+    const { ok, daten } = await senden('/api/rip-datei-erzeugen', formatFelder());
     machenBtn.disabled = false;
     if (!ok) { zeigeStatus($('status-3'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', daten), true); return; }
 
@@ -502,36 +507,13 @@
       $('speichern-link').href = daten.download_url;
       $('speichern-bereich').classList.remove('versteckt');
       zeigeStatus($('status-3'), p.gesamt_ampel, p.gesamt_ampel === 'gruen'
-        ? 'Die Druck-Datei ist fertig. Drück auf „Datei speichern“.'
-        : 'Die Datei ist fertig, hat aber einen Hinweis. Eine Fachkraft soll kurz draufschauen.');
+        ? 'Die Datei für den Drucker ist fertig. Drück auf „Datei speichern“.'
+        : 'Die Datei ist fertig, hat aber einen Hinweis. ' + einfacheGruende(p.punkte, 'gelb') + ' Eine Fachkraft soll kurz draufschauen.');
       $('speichern-link').focus();
     } else {
-      const rot = p.punkte.filter((x) => x.ampel === 'rot');
-      const grund = rot.length === 1 && LABEL_EINFACH[rot[0].schluessel] ? LABEL_EINFACH[rot[0].schluessel] + ' ' : '';
-      zeigeStatus($('status-3'), 'rot', 'Die Datei kann so nicht gedruckt werden. ' + grund + 'Bitte hol eine Fachkraft.', true);
+      const grund = einfacheGruende(p.punkte, 'rot');
+      zeigeStatus($('status-3'), 'rot', 'Die Datei kann so nicht gedruckt werden. ' + (grund ? grund + ' ' : '') + 'Bitte hol eine Fachkraft.', true);
     }
-  });
-
-  // ---------- DTF-Modul (Fachkräfte) ----------
-  $('dtf-btn').addEventListener('click', async () => {
-    const btn = $('dtf-btn');
-    btn.disabled = true;
-    $('dtf-links').classList.add('versteckt');
-    zeigeStatus($('status-dtf'), 'warten', 'Die DTF-Dateien werden berechnet. Bei großen Bildern dauert das bis zu einer Minute.');
-    const { ok, daten } = await senden('/api/dtf-erzeugen', {
-      upload_id: zustand.uploadId,
-      lpi: $('dtf-lpi').value,
-      winkel_grad: $('dtf-winkel').value,
-      knockout_schwelle: $('dtf-knockout').value,
-    });
-    btn.disabled = !zustand.uploadId;
-    if (!ok) { zeigeStatus($('status-dtf'), 'rot', fehlerSatz('Das hat nicht geklappt.', daten), true); return; }
-    $('dtf-farbfilm-link').href = daten.farbfilm_url;
-    $('dtf-weissplatte-link').href = daten.weissplatte_url;
-    $('dtf-pdf-link').href = daten.pdf_url;
-    $('dtf-links').classList.remove('versteckt');
-    const cm = (px) => (px / 300 * 2.54).toFixed(1).replace('.', ',');
-    zeigeStatus($('status-dtf'), 'gruen', 'Fertig: ' + daten.breite_px + ' × ' + daten.hoehe_px + ' Pixel, also ' + cm(daten.breite_px) + ' × ' + cm(daten.hoehe_px) + ' cm mit Filmrand.');
   });
 
   schritteFreigeben();

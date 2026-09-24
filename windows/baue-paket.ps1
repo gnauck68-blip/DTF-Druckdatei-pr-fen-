@@ -115,8 +115,8 @@ try {
     Copy-Item (Join-Path $PSScriptRoot 'rauchtest.py') $Programm
 
     Schritt 'Selbsttest mit dem fertigen Paket'
-    # Nur für den Test: das Beispielprofil von Ghostscript. Im Betrieb nimmt die
-    # Startdatei das Profil aus dem Ordner "profil".
+    # Nur für den Test der PDF/X- und DTF-Schnittstellen: das Beispielprofil von
+    # Ghostscript. Die Datei für den RIP braucht kein Profil.
     $testProfil = Get-ChildItem $gsZiel -Recurse -Filter 'default_cmyk.icc' | Select-Object -First 1
     if (-not $testProfil) {
         $testProfil = Get-ChildItem $gsZiel -Recurse -Include '*cmyk*.icc' | Select-Object -First 1

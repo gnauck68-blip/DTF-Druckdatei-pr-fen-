@@ -2,8 +2,9 @@
 
 Läuft mit dem mitgelieferten Python und Ghostscript, genau wie die
 Startdatei die App startet. Prüft: Ghostscript wird gefunden, ein Druck-PDF
-entsteht und besteht den Preflight, das DTF-Modul rechnet, und der Server
-liefert die Oberfläche aus. Bricht bei jedem Fehler mit Exit-Code 1 ab.
+entsteht und besteht den Preflight, das DTF-Modul rechnet, die Datei für den
+RIP entsteht und besteht ihre Prüfung, und der Server liefert die Oberfläche
+aus. Bricht bei jedem Fehler mit Exit-Code 1 ab.
 
 Aufruf (aus dem Paketordner):
     set TEXSTYLE_GS=...\\programm\\ghostscript\\bin\\gswin64c.exe
@@ -23,7 +24,7 @@ from PIL import Image, ImageDraw
 
 
 def main() -> int:
-    from texstyle_dtf import dtf, formats, pdfx, preflight
+    from texstyle_dtf import dtf, formats, pdfx, preflight, rip
 
     print("Ghostscript:", pdfx.GS_BINARY)
     if not pdfx.GS_BINARY or not os.path.isfile(pdfx.GS_BINARY):
@@ -46,6 +47,14 @@ def main() -> int:
 
         ergebnis = dtf.export_dtf(bild, Path(tmp), "rauchtest", 45, 22.5, 240)
         print("DTF-Film:", ergebnis.breite_px, "x", ergebnis.hoehe_px, "Pixel")
+
+        # Hauptausgabe: Datei für den RIP des Druckers
+        rip_ergebnis = rip.erzeuge_rip_datei(bild, formats.resolve_format("A6"), Path(tmp) / "rauchtest_rip.png")
+        for punkt in rip_ergebnis.bericht.items:
+            print(f"  {punkt.ampel:5} {punkt.label}: {punkt.hinweis}")
+        if not rip_ergebnis.bericht.download_erlaubt:
+            print("FEHLER: Die RIP-Datei ist gesperrt.")
+            return 1
 
     import uvicorn
 

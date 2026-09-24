@@ -1,17 +1,43 @@
 # TexStyle DTF
 
 TexStyle DTF ist eine lokal laufende Web-App für die Werkstatt: aus einem
-hochgeladenen Bild (JPG, PNG, WebP) entsteht eine druckfertige
-PDF/X-1a:2001-Datei, dazu ein DTF-Modul für den Textildruck (Halbtonraster
-und weiße Unterdruckschicht). Die App läuft komplett auf dem eigenen Rechner,
-ohne Internetverbindung im Betrieb, ohne Login, ohne Datenbank.
+hochgeladenen Bild (JPG, PNG, WebP) entsteht die Datei für den RIP des
+DTF-Druckers. Die App läuft komplett auf dem eigenen Rechner, ohne
+Internetverbindung im Betrieb, ohne Login, ohne Datenbank.
+
+## Aufgabenteilung zwischen App und RIP
+
+Der RIP des Druckers legt die endgültigen Druckdaten mit seinem hinterlegten
+ICC-Profil an: Er rechnet die Farben in Druckfarben um, rastert und erzeugt
+die Weißunterlage. Würde die App das vorwegnehmen, würde doppelt umgerechnet
+bzw. doppelt gerastert. Die App liefert darum (`texstyle_dtf/rip.py`):
+
+- PNG in RGB mit eingebettetem **sRGB-Profil**, damit der RIP weiß, wie die
+  Farben gemeint sind. Bilder mit eigenem Profil (z. B. Adobe RGB oder ein
+  CMYK-JPEG) werden beim Hochladen farbrichtig nach sRGB umgerechnet; ohne
+  Profil gilt sRGB.
+- **Durchsichtiger Hintergrund** bleibt erhalten; leere durchsichtige Ränder
+  werden beim Hochladen abgeschnitten, weil sie Folie kosten.
+- **Exakt in Druckgröße bei 300 dpi** (pHYs im PNG), Lanczos-Skalierung mit
+  vormultiplizierter Transparenz (keine dunklen Säume an Kanten).
+- Auf Wunsch **harte Kanten** (Standard): halbtransparente Pixel werden ganz
+  sichtbar oder ganz durchsichtig, damit der RIP die Weißunterlage sauber
+  anlegt.
+- **Keine** CMYK-Umrechnung, kein Raster, keine Weißplatte, keine
+  Schnittmarken.
+
+Das frühere PDF/X-1a-Druck-PDF und das DTF-Modul (eigenes Halbtonraster und
+Weißplatte) sind für diesen Ablauf falsch und deshalb nicht mehr in der
+Oberfläche. Die Schnittstellen (`/api/pdf-erzeugen`, `/api/dtf-erzeugen`)
+und ihre Tests bestehen noch; nur sie brauchen Ghostscript und ein
+CMYK-Profil (siehe unten).
 
 ## Voraussetzungen
 
 - Python 3.11
-- Ghostscript (Kommandozeilenprogramm `gs`), für die PDF/X-Ausgabe
-- Ein CMYK-ICC-Profil, das zur eigenen Druckerei/zum eigenen Drucker passt
-  (siehe Abschnitt „ICC-Profil einrichten" unten)
+- Nur für die älteren Schnittstellen PDF/X und DTF-Raster: Ghostscript
+  (Kommandozeilenprogramm `gs`) und ein CMYK-ICC-Profil (siehe
+  „ICC-Profil einrichten“). Die Datei für den RIP braucht beides nicht.
 
 ### Ghostscript installieren
 
@@ -40,9 +66,10 @@ pip install -r requirements.txt
 
 Das installiert FastAPI, Uvicorn, Pillow, NumPy, pikepdf und pytest.
 
-## ICC-Profil einrichten
+## ICC-Profil einrichten (nur für PDF/X und DTF-Raster)
 
-TexStyle DTF konvertiert Bilder über ein echtes ICC-Profil nach CMYK. Es gibt
+Für die Datei für den RIP ist kein Profil nötig. Die älteren Schnittstellen
+PDF/X und DTF-Raster konvertieren Bilder über ein echtes ICC-Profil nach CMYK. Es gibt
 **keinen** eingebauten Ersatz und **keinen** stillen Fallback: Ohne
 eingerichtetes Profil bricht die App mit einer klaren Fehlermeldung ab, statt
 mit falschen Farben zu drucken.
@@ -114,45 +141,47 @@ automatisch auf einem Windows-Rechner und testet es dort
 und Python 3.11 per Doppelklick auf `windows\Paket-bauen.bat`.
 
 **Einrichten und benutzen:** steht in `LIESMICH.txt` im Paket. Kurz:
-Ordner auf den PC kopieren, das ICC-Profil in den Ordner `profil` legen,
-„Verknuepfung auf Desktop anlegen.bat“ doppelklicken. Danach startet ein
-Doppelklick auf „TexStyle DTF“ die App und öffnet den Browser.
+Ordner auf den PC kopieren, „Verknuepfung auf Desktop anlegen.bat“
+doppelklicken. Danach startet ein Doppelklick auf „TexStyle DTF“ die App und
+öffnet den Browser. Ein Farbprofil ist nicht nötig, das hat der RIP.
 
-Die Startdatei setzt `TEXSTYLE_GS` auf das mitgelieferte Ghostscript und
-`TEXSTYLE_ICC_CMYK` auf die erste `.icc`-/`.icm`-Datei im Ordner `profil`.
-Ohne Profil startet die App nicht (kein stiller Fallback, siehe oben).
+Die Startdatei setzt `TEXSTYLE_GS` auf das mitgelieferte Ghostscript (nur für
+die älteren Schnittstellen PDF/X und DTF-Raster).
 
 ## Beispieldurchlauf
 
-1. `TEXSTYLE_ICC_CMYK` setzen (siehe oben) und die App starten.
+1. Die App starten.
 2. **Schritt 1 „Bild aussuchen“:** Bild wählen (JPG, PNG oder WebP, max. 50 MB,
    höchstens 100 Millionen Pixel) oder mit der Maus auf die Fläche ziehen.
-   Die Vorschau zeigt durchsichtige Stellen als Karomuster.
+   Die Vorschau zeigt durchsichtige Stellen als Karomuster; leerer Rand wird
+   abgeschnitten.
 3. **Schritt 2 „Größe wählen“:** Auf eine Größe tippen (A6 bis A3). Die App
-   prüft sofort, ob das Bild dafür scharf genug ist, und zeigt „Gut“,
-   „Achtung“ oder „Stopp“.
-4. **Schritt 3 „Druck-Datei machen“:** Die App erzeugt das Druck-PDF und prüft
-   es (Preflight). Bei „Gut“ oder „Achtung“ erscheint „Datei speichern“; bei
-   „Stopp“ ist der Download gesperrt. Die einzelnen Prüfpunkte (Auflösung,
-   Farbraum, ICC-Profil, Farbauftrag, TrimBox, BleedBox, PDF-Version,
-   OutputIntent, Dateigröße) stehen unter „Genaue Prüfung (für Fachkräfte)“.
-5. **Für Fachkräfte** (zugeklappter Bereich unten): eigene Größe in mm,
-   „Einpassen“ oder „Randlos füllen“ und das DTF-Modul mit Rasterweite,
-   Rasterwinkel und Knockout-Schwelle. Es entstehen zwei deckungsgleiche
-   PNG-Dateien (Farbfilm und Weißplatte, 300 dpi) sowie ein Vorschau-PDF.
+   prüft sofort, ob das Bild dafür scharf genug ist, zeigt „Gut“, „Achtung“
+   oder „Stopp“ und die Druckgröße in cm.
+4. **Schritt 3 „Druck-Datei machen“:** Die App erzeugt die Datei für den RIP
+   und prüft sie. Bei „Gut“ oder „Achtung“ erscheint „Datei speichern“; bei
+   „Stopp“ ist der Download gesperrt. Die Prüfpunkte (Auflösung, Druckgröße,
+   Hintergrund, Kanten, Farben, Datei) stehen unter „Genaue Prüfung (für
+   Fachkräfte)“.
+5. Die gespeicherte PNG-Datei im RIP des Druckers öffnen.
+6. **Für Fachkräfte** (zugeklappter Bereich unten): eigene Größe in mm,
+   „Einpassen“ oder „Fläche füllen“ und „Kanten hart machen“.
 
 ### Bild ins Format setzen
 
 Das Seitenverhältnis des Bildes bleibt immer erhalten, das Bild wird nie
 verzerrt.
 
-- **Einpassen** (Standard): Das ganze Motiv steht mittig im Endformat (TrimBox).
-  Nichts wird abgeschnitten; es kann ein freier Rand bleiben.
-- **Randlos füllen:** Das Bild füllt Endformat und 3 mm Anschnitt (BleedBox).
-  Was übersteht, wird abgeschnitten.
+- **Einpassen** (Standard): Das ganze Motiv passt in die gewählte Größe,
+  nichts wird abgeschnitten. Die Datei ist so groß wie das Motiv, ohne leeren
+  Rand.
+- **Fläche füllen:** Das Motiv füllt die Größe ganz aus; was übersteht, wird
+  mittig abgeschnitten. Die Datei ist genau so groß wie die gewählte Größe.
 
-Die Auflösung wird immer an der Größe gemessen, in der das Bild tatsächlich
-gedruckt wird: vorab in Schritt 2 und im Preflight direkt aus dem PDF.
+Die Auflösung wird immer an der Größe gemessen, in der das Motiv tatsächlich
+gedruckt wird (Pixel des Originals je Zoll Druckgröße). Die Datei wird auf
+300 dpi gerechnet; beim Vergrößern entstehen dadurch keine neuen Details,
+darum gilt die Ampel für das Original.
 
 ### Bedienung und Barrierefreiheit
 

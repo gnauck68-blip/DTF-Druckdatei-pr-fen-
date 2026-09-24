@@ -4,6 +4,11 @@
 Dieses Paket läuft ohne Installation und ohne Internet. Alles Nötige ist dabei:
 Python, alle Bibliotheken, Ghostscript und die App selbst.
 
+Die App macht die Datei für den RIP des DTF-Druckers: ein PNG mit
+durchsichtigem Hintergrund, genau in Druckgröße, 300 dpi, Farben in sRGB.
+Die Umrechnung in Druckfarben, das Raster und die Weißunterlage macht der RIP
+mit seinem hinterlegten Druckerprofil. Die App braucht darum kein Farbprofil.
+
 
 EINRICHTEN (einmal, durch eine Fachkraft)
 -----------------------------------------
@@ -12,12 +17,7 @@ EINRICHTEN (einmal, durch eine Fachkraft)
    zum Beispiel nach  C:\TexStyle-DTF  oder in die "Dokumente".
    Administratorrechte sind nicht nötig.
 
-2. Das Farbprofil (ICC-Datei, Endung .icc oder .icm) der Druckerei bzw. des
-   Druckers in den Ordner "profil" legen. Liegen dort mehrere, nimmt die App
-   die erste in alphabetischer Reihenfolge. Ohne Farbprofil startet die App
-   nicht, damit nie mit falschen Farben gedruckt wird.
-
-3. Doppelklick auf "Verknuepfung auf Desktop anlegen.bat".
+2. Doppelklick auf "Verknuepfung auf Desktop anlegen.bat".
    Danach liegt auf dem Desktop das Symbol "TexStyle DTF".
 
 
@@ -25,6 +25,7 @@ BENUTZEN
 --------
 
 - Doppelklick auf "TexStyle DTF" (Desktop) oder "TexStyle starten.bat".
+- Die fertige Datei ("Datei speichern") im RIP des Druckers öffnen.
 - Ein schwarzes Fenster geht auf, kurz danach der Browser mit der App.
 - Das schwarze Fenster offen lassen, solange die App benutzt wird.
 - Zum Beenden das schwarze Fenster schließen.
@@ -33,9 +34,6 @@ BENUTZEN
 
 WENN ETWAS NICHT GEHT
 ---------------------
-
-"STOPP: Es fehlt das Farbprofil"
-    Im Ordner "profil" liegt keine .icc- oder .icm-Datei. Siehe Schritt 2.
 
 Der Browser öffnet sich nicht
     Im Browser von Hand diese Adresse öffnen:  http://127.0.0.1:8000

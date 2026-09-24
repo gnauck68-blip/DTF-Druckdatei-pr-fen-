@@ -22,7 +22,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image
 
-from . import dtf, formats, pdfx, preflight
+from . import dtf, formats, pdfx, preflight, rip
 from .color import ICCProfileMissingError
 from .config import (
     DTF_KNOCKOUT_DEFAULT,
@@ -109,6 +109,7 @@ def upload(datei: UploadFile = File(...)) -> dict:
         "breite_px": stored.width_px,
         "hoehe_px": stored.height_px,
         "vorschau_url": f"/api/vorschau/{stored.upload_id}",
+        "rand_entfernt": stored.rand_entfernt,
     }
 
 
@@ -138,9 +139,10 @@ def aufloesung_pruefen(
     with Image.open(stored_path) as img:
         width_px, height_px = img.size
 
-    # Geprüft wird die Größe, in der das Bild tatsächlich gedruckt wird (eingepasst oder füllend)
-    druck_w_mm, druck_h_mm = pdfx.platzierte_groesse_mm(width_px, height_px, page_format, anpassung)
-    result = check_resolution(width_px, height_px, druck_w_mm, druck_h_mm)
+    # Geprüft wird die Größe, in der das Motiv in der RIP-Datei gedruckt wird
+    groesse = rip.druckgroesse(width_px, height_px, page_format, anpassung)
+    result = check_resolution(width_px, height_px, groesse.motiv_breite_mm, groesse.motiv_hoehe_mm)
+    druck_w_mm, druck_h_mm = groesse.breite_mm, groesse.hoehe_mm
 
     return {
         "format": {"code": page_format.code, "label": page_format.label},
@@ -163,6 +165,61 @@ def _format_oder_400(format_code: str, breite_mm: float | None, hoehe_mm: float 
 def _pruefe_anpassung(anpassung: str) -> None:
     if anpassung not in pdfx.ANPASSUNGEN:
         raise HTTPException(status_code=400, detail="Unbekannte Einstellung: Bild einpassen oder Fläche füllen wählen.")
+
+
+def _rip_pfad(rip_id: str) -> Path:
+    if not _is_safe_pdf_id(rip_id):
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden.")
+    return OUTPUT_DIR / f"{rip_id}_rip.png"
+
+
+@app.post("/api/rip-datei-erzeugen")
+def rip_datei_erzeugen(
+    upload_id: str = Form(...),
+    format_code: str = Form(...),
+    breite_mm: float | None = Form(default=None),
+    hoehe_mm: float | None = Form(default=None),
+    anpassung: str = Form(default=rip.ANPASSUNG_EINPASSEN),
+    kanten_haerten: bool = Form(default=True),
+) -> dict:
+    """Erzeugt die Datei für den RIP des Druckers (PNG, sRGB, Transparenz, 300 dpi)."""
+    stored_path = find_stored_upload(upload_id)
+    if stored_path is None:
+        raise HTTPException(status_code=404, detail="Bild nicht gefunden. Bitte erneut hochladen.")
+    page_format = _format_oder_400(format_code, breite_mm, hoehe_mm)
+    _pruefe_anpassung(anpassung)
+
+    rip_id = uuid.uuid4().hex
+    ausgabe = _rip_pfad(rip_id)
+    try:
+        with Image.open(stored_path) as img:
+            ergebnis = rip.erzeuge_rip_datei(img, page_format, ausgabe, anpassung, kanten_haerten)
+    except rip.RipFehler as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if not ergebnis.bericht.download_erlaubt:
+        # Die Sperre gilt auch für direkte Aufrufe der Download-Adresse
+        ausgabe.with_suffix(".gesperrt").touch()
+
+    g = ergebnis.groesse
+    return {
+        "rip_id": rip_id,
+        "download_url": f"/api/rip-datei/{rip_id}",
+        "druckgroesse_mm": {"breite": round(g.breite_mm, 1), "hoehe": round(g.hoehe_mm, 1)},
+        "pixel": {"breite": g.breite_px, "hoehe": g.hoehe_px},
+        "dpi_effektiv": round(ergebnis.dpi_effektiv, 1),
+        "preflight": _preflight_report_dict(ergebnis.bericht),
+    }
+
+
+@app.get("/api/rip-datei/{rip_id}")
+def rip_datei_download(rip_id: str) -> FileResponse:
+    pfad = _rip_pfad(rip_id)
+    if not pfad.is_file():
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden. Möglicherweise wurde sie bereits automatisch gelöscht.")
+    if pfad.with_suffix(".gesperrt").exists():
+        raise HTTPException(status_code=409, detail="Download gesperrt: Die Prüfung zeigt Rot.")
+    return FileResponse(pfad, media_type="image/png", filename="texstyle-dtf-rip.png")
 
 
 def _is_safe_pdf_id(pdf_id: str) -> bool:
