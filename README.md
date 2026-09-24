@@ -172,22 +172,26 @@ die älteren Schnittstellen PDF/X und DTF-Raster).
 
 ## Beispieldurchlauf
 
-1. Die App starten.
-2. **Schritt 1 „Bild aussuchen“:** Bild wählen (JPG, PNG oder WebP, max. 50 MB,
+1. Die App öffnen (Windows-Paket, Web-Adresse oder installiert auf Android).
+2. **Schritt 1 „Bild aussuchen“:** JPG, PNG oder WebP wählen (max. 50 MB,
    höchstens 100 Millionen Pixel) oder mit der Maus auf die Fläche ziehen.
-   Die Vorschau zeigt durchsichtige Stellen als Karomuster; leerer Rand wird
-   abgeschnitten.
-3. **Schritt 2 „Größe wählen“:** Auf eine Größe tippen (A6 bis A3). Die App
-   prüft sofort, ob das Bild dafür scharf genug ist, zeigt „Gut“, „Achtung“
-   oder „Stopp“ und die Druckgröße in cm.
-4. **Schritt 3 „Druck-Datei machen“:** Die App erzeugt die Datei für den RIP
-   und prüft sie. Bei „Gut“ oder „Achtung“ erscheint „Datei speichern“; bei
-   „Stopp“ ist der Download gesperrt. Die Prüfpunkte (Auflösung, Druckgröße,
-   Hintergrund, Kanten, Farben, Datei) stehen unter „Genaue Prüfung (für
-   Fachkräfte)“.
-5. Die gespeicherte PNG-Datei im RIP des Druckers öffnen.
-6. **Für Fachkräfte** (zugeklappter Bereich unten): eigene Größe in mm,
-   „Einpassen“ oder „Fläche füllen“ und „Kanten hart machen“.
+3. **Schritt 2 „Hintergrund entfernen“:** Einen einfarbigen Hintergrund
+   erkennt die App am Bildrand und entfernt ihn gleich; der Regler „Wie viel
+   wird entfernt?“ steuert die Toleranz, „Auch Innenflächen entfernen“ nimmt
+   eingeschlossene Flächen in der Hintergrundfarbe mit (Loch im „o“).
+   Ins Vorschaubild tippen wählt die Farbe, die weg soll. Danach wird der
+   Saum um 1 px abgetragen und der leere Rand abgeschnitten.
+4. **Schritt 3 „Größe wählen“:** Breite in cm eintippen, mit − und + ändern
+   oder Schnellwahl (8, 10, 25, 30 cm). Die Höhe folgt aus dem Motiv. Die
+   Ampel zeigt die Auflösung des Originals in dieser Breite; zu kleine Bilder
+   werden nicht gesperrt, sondern hochgerechnet.
+5. **Schritt 4 „Druck-Datei machen“:** Die App rechnet auf 300 dpi,
+   glättet die Kanten (Alpha weichzeichnen, dann hart schneiden, beim
+   Hochrechnen stärker), schärft beim Vergrößern leicht nach und auf Wunsch
+   „Logo glätten“: die Farben kommen dann aus einer Vektorform
+   (ImageTracer, lokal in `static/imagetracer.js`), der Umriss aus der
+   geglätteten Rasterfassung. Ergebnis mit Vorschau, Prüfung und
+   „Datei speichern“; die Datei in den RIP des Druckers laden.
 
 ### Bild ins Format setzen
 

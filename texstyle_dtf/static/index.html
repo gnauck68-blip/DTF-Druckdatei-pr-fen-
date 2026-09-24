@@ -148,6 +148,26 @@
   .fachbereich > summary{font-size:1.15rem; padding-top:1rem;}
   .fachbereich > details{margin-top:1.25rem;}
   .fachbereich h3{margin:1.25rem 0 .25rem; font-size:1.1rem;}
+  /* Hintergrund, Größe, Optionen */
+  .umschalter{display:flex; flex-wrap:wrap; gap:.6rem; margin:.5rem 0;}
+  .umschalter button{flex:1 1 12rem;}
+  .regler{display:grid; gap:.25rem; margin:.75rem 0;}
+  .regler label{font-weight:700;}
+  .regler input[type=range]{width:100%; height:2.6rem; accent-color:var(--accent);}
+  .regler .enden{display:flex; justify-content:space-between; font-size:.85rem; color:var(--muted);}
+  .tipp{font-size:.9rem; color:var(--muted); margin:.4rem 0 0;}
+  .karo.tippbar{cursor:crosshair;}
+  .groesse-zeile{display:flex; align-items:stretch; gap:.5rem; flex-wrap:wrap; margin:.5rem 0;}
+  .groesse-zeile button{min-width:3.6rem; font-size:1.6rem; padding:.2rem .8rem;}
+  .groesse-zeile input{font:inherit; font-size:1.6rem; font-weight:700; width:7rem; text-align:center; min-height:3.6rem;
+    border:.15rem solid var(--line); border-radius:.6rem; color:var(--ink); background:#fff;}
+  .groesse-zeile .einheit{align-self:center; font-size:1.3rem; font-weight:700;}
+  .schnell{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap:.5rem; margin:.75rem 0;}
+  .schnell button{flex-direction:column; gap:0; min-height:3.6rem; font-size:1rem;}
+  .schnell button small{font-weight:400; font-size:.8rem;}
+  .hoehe{font-size:1.1rem; margin:.25rem 0;}
+  .ergebnis-bild{margin-top:1rem;}
+  .ergebnis-bild img{max-width:100%; max-height:24rem;}
 </style>
 </head>
 <body>
@@ -164,6 +184,7 @@
   <symbol id="i-sprechen" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-speichern" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 19h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-schrift" viewBox="0 0 24 24"><path d="M2 20 7 6l5 14M4 15h6M14 20l4-10 4 10M15.5 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-radierer" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-9 9H6l-3-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 10l5 5M11 18.5h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
 </svg>
 
 <header class="kopf">
@@ -176,7 +197,7 @@
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
     </button>
   </div>
-  <p id="hilfe" style="margin:0; flex-basis:100%;">So geht es: 1. Bild aussuchen. 2. Größe wählen. 3. Druck-Datei machen.</p>
+  <p id="hilfe" style="margin:0; flex-basis:100%;">So geht es: 1. Bild aussuchen. 2. Hintergrund entfernen. 3. Größe in Zentimetern wählen. 4. Druck-Datei machen.</p>
 </header>
 
 <main>
@@ -198,11 +219,7 @@
              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
     </div>
     <div id="status-1" aria-live="polite"></div>
-    <div class="vorschau versteckt" id="vorschau">
-      <div class="karo"><img id="vorschau-bild" alt="Das ausgesuchte Bild"></div>
-      <div id="bild-info"></div>
-    </div>
-    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-1" style="margin-top:.75rem">
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-1 status-1" style="margin-top:.75rem">
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
     </button>
   </section>
@@ -211,21 +228,29 @@
   <section class="schritt aus" id="schritt-2" aria-labelledby="titel-2">
     <div class="schritt-kopf">
       <span class="schritt-nr" aria-hidden="true">2</span>
-      <h2 id="titel-2">Größe wählen</h2>
-      <svg class="symbol" aria-hidden="true"><use href="#i-groesse"/></svg>
+      <h2 id="titel-2">Hintergrund entfernen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-radierer"/></svg>
     </div>
-    <p id="text-2">Wie groß soll der Druck werden? Tipp auf eine Größe.</p>
-    <fieldset class="formate" id="formate">
-      <legend>Größe</legend>
-      <label class="kachel"><input type="radio" name="format" value="A6" disabled>
-        <span class="inhalt"><span class="blatt" style="width:1.6rem;height:2.26rem" aria-hidden="true"></span><b>A6</b><span>wie eine Postkarte</span><small>10,5 × 14,8 cm</small></span></label>
-      <label class="kachel"><input type="radio" name="format" value="A5" disabled>
-        <span class="inhalt"><span class="blatt" style="width:2.26rem;height:3.2rem" aria-hidden="true"></span><b>A5</b><span>ein halbes Blatt</span><small>14,8 × 21 cm</small></span></label>
-      <label class="kachel"><input type="radio" name="format" value="A4" disabled>
-        <span class="inhalt"><span class="blatt" style="width:3.2rem;height:4.53rem" aria-hidden="true"></span><b>A4</b><span>ein Blatt Papier</span><small>21 × 29,7 cm</small></span></label>
-      <label class="kachel"><input type="radio" name="format" value="A3" disabled>
-        <span class="inhalt"><span class="blatt" style="width:4.53rem;height:6.4rem" aria-hidden="true"></span><b>A3</b><span>zwei Blätter groß</span><small>29,7 × 42 cm</small></span></label>
-    </fieldset>
+    <p id="text-2">Was nicht gedruckt werden soll, wird durchsichtig. Durchsichtig siehst du als Karomuster.</p>
+    <div class="vorschau versteckt" id="vorschau">
+      <div class="karo tippbar"><img id="vorschau-bild" alt="Vorschau: So wird das Bild gedruckt. Tippen wählt die Farbe, die weg soll."></div>
+      <div id="bild-info"></div>
+    </div>
+    <p class="tipp" id="tipp-farbe">Tipp: Tipp ins Bild auf die Farbe, die weg soll.</p>
+    <div class="umschalter">
+      <button type="button" id="hg-btn" aria-pressed="false" disabled>
+        <svg aria-hidden="true"><use href="#i-radierer"/></svg><span id="hg-btn-text">Hintergrund entfernen</span>
+      </button>
+    </div>
+    <div class="regler">
+      <label for="toleranz">Wie viel wird entfernt?</label>
+      <input type="range" id="toleranz" min="0" max="80" step="1" value="30" disabled>
+      <div class="enden"><span>weniger (nur genau diese Farbe)</span><span>mehr (auch ähnliche Farben)</span></div>
+    </div>
+    <div class="auswahl">
+      <label><input type="checkbox" id="innen" disabled>
+        <span><b>Auch Innenflächen entfernen</b>, zum Beispiel das Loch im „o“, „a“ oder „8“. Große Flächen bleiben zur Sicherheit stehen.</span></label>
+    </div>
     <div id="status-2" aria-live="polite"></div>
     <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-2 status-2" style="margin-top:.75rem">
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
@@ -236,16 +261,55 @@
   <section class="schritt aus" id="schritt-3" aria-labelledby="titel-3">
     <div class="schritt-kopf">
       <span class="schritt-nr" aria-hidden="true">3</span>
-      <h2 id="titel-3">Druck-Datei machen</h2>
+      <h2 id="titel-3">Größe wählen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-groesse"/></svg>
+    </div>
+    <p id="text-3">Wie breit soll der Druck werden? Die Höhe rechnet die App aus.</p>
+    <label for="breite" style="font-weight:700;">Breite in Zentimetern</label>
+    <div class="groesse-zeile">
+      <button type="button" id="breite-minus" aria-label="1 Zentimeter schmaler" disabled>−</button>
+      <input type="text" id="breite" inputmode="decimal" value="10" disabled aria-describedby="hoehe">
+      <button type="button" id="breite-plus" aria-label="1 Zentimeter breiter" disabled>+</button>
+      <span class="einheit">cm</span>
+    </div>
+    <p class="hoehe" id="hoehe"></p>
+    <div class="schnell" role="group" aria-label="Schnellwahl Breite">
+      <button type="button" class="leise schnell-btn" data-cm="8" disabled>8 cm<small>Logo klein</small></button>
+      <button type="button" class="leise schnell-btn" data-cm="10" disabled>10 cm<small>Brust links</small></button>
+      <button type="button" class="leise schnell-btn" data-cm="25" disabled>25 cm<small>Brust groß</small></button>
+      <button type="button" class="leise schnell-btn" data-cm="30" disabled>30 cm<small>Rücken</small></button>
+    </div>
+    <div id="status-3" aria-live="polite"></div>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-3 status-3" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
+  </section>
+
+  <!-- Schritt 4 -->
+  <section class="schritt aus" id="schritt-4" aria-labelledby="titel-4">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">4</span>
+      <h2 id="titel-4">Druck-Datei machen</h2>
       <svg class="symbol" aria-hidden="true"><use href="#i-drucken"/></svg>
     </div>
-    <p id="text-3">Drück auf den Knopf. Die App macht die Datei für den Drucker und prüft sie.</p>
+    <p id="text-4">Drück auf den Knopf. Die App rechnet das Bild auf 300 dpi, glättet es und prüft die Datei.</p>
+    <div class="auswahl">
+      <label><input type="checkbox" id="kanten" checked>
+        <span><b>Kanten glätten</b> (empfohlen): runde, saubere Kanten ohne Treppen, ganz sichtbar oder ganz durchsichtig.</span></label>
+      <label><input type="checkbox" id="schaerfen" checked>
+        <span><b>Beim Vergrößern nachschärfen</b> (empfohlen): wirkt kleinen Bildern entgegen, die sonst weich werden.</span></label>
+      <label><input type="checkbox" id="logo">
+        <span><b>Logo glätten</b>: zeichnet Logos und Schrift als Vektorform nach, ganz glatt in jeder Größe. Nicht für Fotos.</span></label>
+    </div>
     <button type="button" class="gross-knopf" id="machen-btn" disabled>
       <svg aria-hidden="true"><use href="#i-drucken"/></svg>Druck-Datei machen
     </button>
-    <div id="status-3" aria-live="polite"></div>
+    <div id="status-4" aria-live="polite"></div>
+    <div class="ergebnis-bild versteckt" id="ergebnis-bild">
+      <div class="karo"><img id="ergebnis-img" alt="Die fertige Druck-Datei"></div>
+    </div>
     <div class="links versteckt" id="speichern-bereich">
-      <a class="knopf gross-knopf" id="speichern-link" href="#" download>
+      <a class="knopf gross-knopf" id="speichern-link" href="#" download="texstyle-dtf.png">
         <svg aria-hidden="true"><use href="#i-speichern"/></svg>Datei speichern
       </a>
     </div>
@@ -253,53 +317,27 @@
       <summary>Genaue Prüfung (für Fachkräfte)</summary>
       <ul id="pruef-liste"></ul>
     </details>
-    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-3 status-3" style="margin-top:.75rem">
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-4 status-4" style="margin-top:.75rem">
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
     </button>
   </section>
 
-  <!-- Fachkräfte -->
-  <details class="fachbereich" id="fachbereich">
-    <summary>Für Fachkräfte: weitere Einstellungen</summary>
-
-    <h3>Eigene Größe</h3>
-    <div class="auswahl">
-      <label><input type="checkbox" id="frei-an" disabled> Eigene Größe in Millimetern statt A6 bis A3</label>
-    </div>
-    <div class="zwei">
-      <div class="feld"><label for="frei-breite">Breite (mm)</label><input type="number" id="frei-breite" min="10" max="3000" step="1" value="210" disabled></div>
-      <div class="feld"><label for="frei-hoehe">Höhe (mm)</label><input type="number" id="frei-hoehe" min="10" max="3000" step="1" value="297" disabled></div>
-    </div>
-
-    <h3>Bild ins Format setzen</h3>
-    <div class="auswahl" role="radiogroup" aria-label="Bild ins Format setzen">
-      <label><input type="radio" name="anpassung" value="einpassen" checked>
-        <span><b>Einpassen</b> (Standard): Das ganze Motiv passt in die Größe, nichts wird abgeschnitten. Die Datei ist so groß wie das Motiv.</span></label>
-      <label><input type="radio" name="anpassung" value="fuellen">
-        <span><b>Fläche füllen</b>: Das Motiv füllt die Größe ganz aus. Was übersteht, wird mittig abgeschnitten.</span></label>
-    </div>
-
-    <h3>Kanten</h3>
-    <div class="auswahl">
-      <label><input type="checkbox" id="kanten-haerten" checked>
-        <span><b>Kanten hart machen</b> (empfohlen): Halb durchsichtige Pixel werden ganz sichtbar oder ganz durchsichtig. So legt der RIP die Weißunterlage sauber an.</span></label>
-    </div>
-
-    <h3>Was die App macht und was der RIP macht</h3>
-    <p class="fach">Die App liefert ein PNG in RGB mit sRGB-Profil, mit durchsichtigem Hintergrund, exakt in Druckgröße bei 300 dpi. Farbumrechnung mit dem Druckerprofil, Rasterung und Weißunterlage macht der RIP des Druckers. Darum rechnet die App keine Farben in CMYK um.</p>
+  <details class="fachbereich">
+    <summary>Was die App macht und was der RIP macht</summary>
+    <p class="fach">Die App liefert ein PNG in RGB mit sRGB-Profil, mit durchsichtigem Hintergrund, genau in der gewählten Breite bei 300 dpi. Zu kleine Bilder rechnet sie hoch, glättet die Kanten und schärft leicht nach. Farbumrechnung mit dem Druckerprofil, Rasterung und Weißunterlage macht der RIP des Druckers. Darum rechnet die App keine Farben in CMYK um. Das Bild verlässt dieses Gerät nie.</p>
   </details>
 
 </main>
 
+<script src="imagetracer.js"></script>
 <script src="rip.js"></script>
 <script>
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-
-  // Alles wird im Browser gerechnet (rip.js); das Bild verlässt das Gerät nie.
   const R = window.TexStyleRip;
-  const zustand = { bild: null, pruefNr: 0, dateiUrl: null };
+  // original: geladenes Bild; motiv: nach Hintergrund und Zuschnitt; hg: Hintergrund-Einstellung
+  const zustand = { original: null, motiv: null, hg: { entfernen: false, farbe: null, toleranz: 30, innenflaechen: false }, dateiUrl: null };
 
   // ---------- Große Schrift (wird im Browser gemerkt, falls erlaubt) ----------
   const schriftBtn = $('schrift-btn');
@@ -314,12 +352,9 @@
     try { localStorage.setItem('texstyle-schrift', an ? 'gross' : 'normal'); } catch (e) { /* ohne Speicher */ }
   });
 
-  // ---------- Vorlesen mit den Stimmen des Betriebssystems (offline) ----------
+  // ---------- Vorlesen: nur Stimmen, die auf dem Gerät laufen (Datenschutz, offline) ----------
   const sprache = window.speechSynthesis;
   function deutscheStimme() {
-    // Nur Stimmen, die auf diesem Rechner laufen (localService). Online-Stimmen
-    // (z. B. „Natural“-Stimmen in Edge, „Google Deutsch“ in Chrome) schicken den
-    // Text an den Hersteller; das wäre eine Übermittlung an Dritte (DSGVO).
     if (!sprache) return null;
     return sprache.getVoices().find((v) => v.localService && v.lang && v.lang.toLowerCase().startsWith('de')) || null;
   }
@@ -327,31 +362,23 @@
     const da = !!deutscheStimme();
     document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
   }
-  if (sprache) {
-    vorlesenPruefen();
-    sprache.addEventListener('voiceschanged', vorlesenPruefen);
-  }
-  function vorlesen(text) {
-    const stimme = deutscheStimme();
-    if (!stimme || !text) return;
-    sprache.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
-    sprache.speak(u);
-  }
+  if (sprache) { vorlesenPruefen(); sprache.addEventListener('voiceschanged', vorlesenPruefen); }
   document.querySelectorAll('.vorlesen-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const text = btn.dataset.lies.split(' ').map((id) => ($(id) ? $(id).innerText : '')).join(' ');
-      vorlesen(text.replace(/\s+/g, ' ').trim());
+      const stimme = deutscheStimme();
+      const text = btn.dataset.lies.split(' ').map((id) => ($(id) ? $(id).innerText : '')).join(' ').replace(/\s+/g, ' ').trim();
+      if (!stimme || !text) return;
+      sprache.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
+      sprache.speak(u);
     });
   });
 
   // ---------- Statusanzeige: Form + Wort + Farbe ----------
   const STATUS = {
-    gruen: { symbol: 'i-gut', wort: 'Gut' },
-    gelb: { symbol: 'i-achtung', wort: 'Achtung' },
-    rot: { symbol: 'i-stopp', wort: 'Stopp' },
-    warten: { symbol: 'i-warten', wort: 'Bitte warten' },
+    gruen: { symbol: 'i-gut', wort: 'Gut' }, gelb: { symbol: 'i-achtung', wort: 'Achtung' },
+    rot: { symbol: 'i-stopp', wort: 'Stopp' }, warten: { symbol: 'i-warten', wort: 'Bitte warten' },
   };
   function zeigeStatus(ziel, art, satz, fehler) {
     const s = STATUS[art];
@@ -364,146 +391,170 @@
     ziel.replaceChildren(box);
   }
   function leere(ziel) { ziel.replaceChildren(); }
-
-  // Bekannte Fehler (RipFehler) sind schon Klartext; alles andere bekommt einen einfachen Satz
   function fehlerSatz(einfach, fehler) {
     if (fehler instanceof R.RipFehler) return fehler.message;
     return einfach + (fehler && fehler.message ? ' Hinweis für die Fachkraft: ' + fehler.message : '');
   }
-  // Kurz warten, damit die Warteanzeige erscheint, bevor die Rechnung den Browser beschäftigt
   const kurzWarten = () => new Promise((ok) => setTimeout(ok, 30));
 
   // ---------- Schritt 1: Bild ----------
   const dateiInput = $('datei-input');
   const ablage = $('ablage');
   $('bild-btn').addEventListener('click', () => dateiInput.click());
-  dateiInput.addEventListener('change', () => { if (dateiInput.files.length) hochladen(dateiInput.files[0]); dateiInput.value = ''; });
+  dateiInput.addEventListener('change', () => { if (dateiInput.files.length) laden(dateiInput.files[0]); dateiInput.value = ''; });
   ['dragenter', 'dragover'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.add('drueber'); }));
   ['dragleave', 'drop'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.remove('drueber'); }));
-  ablage.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) hochladen(e.dataTransfer.files[0]); });
+  ablage.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) laden(e.dataTransfer.files[0]); });
 
-  async function hochladen(datei) {
-    zustand.bild = null;
-    schritteFreigeben();
-    ergebnisZuruecksetzen();
-    leere($('status-2'));
+  async function laden(datei) {
+    zustand.original = null; zustand.motiv = null;
+    freigeben(); ergebnisZuruecksetzen(); leere($('status-2')); leere($('status-3'));
     zeigeStatus($('status-1'), 'warten', 'Das Bild wird geladen.');
     await kurzWarten();
     try {
-      zustand.bild = await R.ladeBild(datei);
+      zustand.original = await R.ladeBild(datei);
     } catch (e) {
       $('vorschau').classList.add('versteckt');
       zeigeStatus($('status-1'), 'rot', fehlerSatz('Das Bild geht nicht. Nimm ein anderes Bild (JPG, PNG oder WebP).', e), true);
       return;
     }
-    const b = zustand.bild;
-    $('vorschau-bild').src = R.vorschau(b.leinwand, 600);
-    $('bild-info').textContent = 'Bildgröße: ' + b.breite + ' × ' + b.hoehe + ' Pixel' + (b.randEntfernt ? ' (leerer Rand entfernt)' : '');
-    $('vorschau').classList.remove('versteckt');
-    zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da. Jetzt bei Schritt 2 die Größe wählen.');
-    schritteFreigeben();
-    if (formatGewaehlt()) pruefen();
+    const o = zustand.original;
+    zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da (' + o.breite + ' × ' + o.hoehe + ' Pixel). Weiter mit Schritt 2.');
+    // Hintergrund automatisch erkennen und bei einfarbigem Hintergrund gleich entfernen
+    const erkannt = R.erkenneHintergrund(o.leinwand);
+    zustand.hg = { entfernen: erkannt.art === 'einfarbig', farbe: erkannt.farbe, toleranz: 30, innenflaechen: false, art: erkannt.art };
+    $('toleranz').value = 30; $('innen').checked = false;
+    hintergrundAnwenden();
+    // Sinnvolle Startbreite: so breit, wie das Motiv bei 300 dpi scharf ist (höchstens 30 cm)
+    if (zustand.motiv) setzeBreite(Math.max(1, Math.min(30, Math.floor(zustand.motiv.breite / 300 * 2.54 * 2) / 2)));
+    freigeben();
   }
 
-  // ---------- Schritt 2: Größe ----------
-  function formatGewaehlt() {
-    if ($('frei-an').checked) return 'CUSTOM';
-    const r = document.querySelector('input[name=format]:checked');
-    return r ? r.value : null;
-  }
-  function einstellungen() {
-    return {
-      code: formatGewaehlt(),
-      breiteMm: $('frei-breite').value,
-      hoeheMm: $('frei-hoehe').value,
-      anpassung: document.querySelector('input[name=anpassung]:checked').value,
-      kantenHaerten: $('kanten-haerten').checked,
-    };
-  }
-  document.querySelectorAll('input[name=format]').forEach((r) => r.addEventListener('change', () => { $('frei-an').checked = false; eingabeGeaendert(); }));
-  document.querySelectorAll('input[name=anpassung]').forEach((r) => r.addEventListener('change', eingabeGeaendert));
-  $('kanten-haerten').addEventListener('change', ergebnisZuruecksetzen);
-  $('frei-an').addEventListener('change', () => {
-    if ($('frei-an').checked) document.querySelectorAll('input[name=format]').forEach((r) => { r.checked = false; });
-    eingabeGeaendert();
-  });
-  let tippPause = null;
-  ['frei-breite', 'frei-hoehe'].forEach((id) => $(id).addEventListener('input', () => {
-    if (!$('frei-an').checked) return;
-    clearTimeout(tippPause); tippPause = setTimeout(eingabeGeaendert, 500);
-  }));
-
-  function eingabeGeaendert() {
+  // ---------- Schritt 2: Hintergrund ----------
+  function farbName(f) { return 'RGB ' + f.join(', '); }
+  function hintergrundAnwenden() {
+    const o = zustand.original;
+    if (!o) return;
     ergebnisZuruecksetzen();
-    schritteFreigeben();
-    if (zustand.bild && formatGewaehlt()) pruefen(); else leere($('status-2'));
-  }
-
-  const PRUEF_SATZ = {
-    gruen: 'Das Bild ist scharf genug für diese Größe.',
-    gelb: 'Das Bild wird etwas unscharf. Besser eine kleinere Größe wählen.',
-    rot: 'Das Bild ist zu klein für diese Größe. Wähl eine kleinere Größe oder ein größeres Bild.',
-  };
-  function pruefen() {
-    const e = einstellungen();
-    let ergebnis;
     try {
-      ergebnis = R.pruefeGroesse(zustand.bild, e.code, e.breiteMm, e.hoeheMm, e.anpassung);
-    } catch (fehler) {
-      zeigeStatus($('status-2'), 'rot', fehlerSatz('Die Größe geht so nicht.', fehler), true);
+      zustand.motiv = R.bereiteVor(o.leinwand, zustand.hg);
+    } catch (e) {
+      zeigeStatus($('status-2'), 'rot', fehlerSatz('Das hat nicht geklappt.', e), true);
       return;
     }
-    const cm = (mm) => (mm / 10).toFixed(1).replace('.', ',');
-    const g = ergebnis.groesse, a = ergebnis.aufloesung;
-    zeigeStatus($('status-2'), a.ampel, PRUEF_SATZ[a.ampel] + ' Druckgröße: ' + cm(g.breiteMm) + ' × ' + cm(g.hoeheMm) + ' cm (' + Math.round(a.dpi) + ' dpi).');
+    const m = zustand.motiv, hg = zustand.hg;
+    $('vorschau-bild').src = R.vorschau(m.leinwand, 700);
+    $('vorschau').classList.remove('versteckt');
+    $('bild-info').textContent = 'Motiv: ' + m.breite + ' × ' + m.hoehe + ' Pixel' + (m.randEntfernt ? ' (leerer Rand abgeschnitten)' : '');
+    $('hg-btn').setAttribute('aria-pressed', hg.entfernen ? 'true' : 'false');
+    $('hg-btn-text').textContent = hg.entfernen ? 'Hintergrund wird entfernt (antippen = behalten)' : 'Hintergrund entfernen';
+    if (hg.entfernen && m.hintergrundEntfernt) {
+      zeigeStatus($('status-2'), 'gruen', 'Der Hintergrund ist weg. Wenn noch Reste da sind: Regler nach rechts. Wenn zu viel fehlt: Regler nach links.' +
+        (hg.innenflaechen ? '' : ' Sind in Buchstaben noch Flächen in der alten Farbe? Dann Häkchen bei „Auch Innenflächen entfernen“.'));
+    } else if (hg.entfernen) {
+      zeigeStatus($('status-2'), 'gelb', 'Diese Farbe liegt nicht am Bildrand. Tipp ins Bild auf die Farbe, die weg soll.');
+    } else if (hg.art === 'durchsichtig' || m.transparent) {
+      zeigeStatus($('status-2'), 'gruen', 'Das Bild hat schon einen durchsichtigen Hintergrund.');
+    } else if (hg.art === 'keiner' && !hg.farbe) {
+      zeigeStatus($('status-2'), 'gelb', 'Kein einfarbiger Hintergrund gefunden. Tipp ins Bild auf die Farbe, die weg soll. Sonst wird das ganze Rechteck gedruckt.');
+    } else {
+      zeigeStatus($('status-2'), 'gelb', 'Der Hintergrund bleibt. Dann wird das ganze Rechteck gedruckt.');
+    }
+    groessePruefen();
+  }
+  $('hg-btn').addEventListener('click', () => {
+    if (!zustand.hg.farbe) { zeigeStatus($('status-2'), 'gelb', 'Tipp zuerst ins Bild auf die Farbe, die weg soll.'); return; }
+    zustand.hg.entfernen = !zustand.hg.entfernen;
+    hintergrundAnwenden();
+  });
+  let reglerPause = null;
+  $('toleranz').addEventListener('input', () => {
+    zustand.hg.toleranz = Number($('toleranz').value);
+    clearTimeout(reglerPause); reglerPause = setTimeout(hintergrundAnwenden, 200);
+  });
+  $('innen').addEventListener('change', () => { zustand.hg.innenflaechen = $('innen').checked; hintergrundAnwenden(); });
+  // Farbe antippen: Punkt in der Vorschau über die Lage des Motivs (versatz) auf das
+  // Originalbild umrechnen und dort die Farbe messen.
+  $('vorschau-bild').addEventListener('click', (e) => {
+    if (!zustand.original || !zustand.motiv) return;
+    const bildEl = e.currentTarget, rahmen = bildEl.getBoundingClientRect();
+    const o = zustand.original, m = zustand.motiv;
+    const fx = (e.clientX - rahmen.left) / rahmen.width, fy = (e.clientY - rahmen.top) / rahmen.height;
+    const x = m.versatz.x + fx * m.breite, y = m.versatz.y + fy * m.hoehe;
+    zustand.hg.farbe = R.farbeAn(o.leinwand, x, y);
+    zustand.hg.entfernen = true;
+    hintergrundAnwenden();
+  });
+  // ---------- Schritt 3: Größe ----------
+  function formatCm(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
+  function breiteCm() { return Number(String($('breite').value).replace(',', '.')); }
+  function setzeBreite(v) { $('breite').value = formatCm(Math.max(1, Math.min(300, v))); groessePruefen(); }
+  $('breite-minus').addEventListener('click', () => setzeBreite(Math.floor(breiteCm() - 0.001) || 1));
+  $('breite-plus').addEventListener('click', () => setzeBreite(Math.ceil(breiteCm() + 0.001)));
+  document.querySelectorAll('.schnell-btn').forEach((b) => b.addEventListener('click', () => setzeBreite(Number(b.dataset.cm))));
+  let tippPause = null;
+  $('breite').addEventListener('input', () => { clearTimeout(tippPause); tippPause = setTimeout(groessePruefen, 400); });
+
+  const SATZ = {
+    gruen: 'Das Bild ist scharf genug für diese Größe.',
+    gelb: 'Das Bild ist eigentlich zu klein für diese Größe. Die App rechnet es hoch und glättet es.',
+  };
+  function groessePruefen() {
+    ergebnisZuruecksetzen();
+    if (!zustand.motiv) return;
+    let e;
+    try { e = R.pruefeBreite(zustand.motiv, breiteCm()); }
+    catch (f) { $('hoehe').textContent = ''; zeigeStatus($('status-3'), 'rot', fehlerSatz('Die Größe geht so nicht.', f), true); freigeben(); return; }
+    const g = e.groesse, a = e.aufloesung;
+    $('hoehe').textContent = 'Höhe: ' + formatCm(g.hoeheMm / 10) + ' cm';
+    let satz = SATZ[a.ampel] + ' (' + Math.round(a.dpi) + ' dpi)';
+    if (a.dpi < 150) satz = 'Das Bild ist viel zu klein für diese Größe (' + Math.round(a.dpi) + ' dpi). Die App rechnet es hoch, es kann aber weich wirken. Besser kleiner drucken.';
+    zeigeStatus($('status-3'), a.ampel, satz);
+    freigeben();
   }
 
-  // ---------- Schritt 3: Druck-Datei ----------
+  // ---------- Schritt 4: Druck-Datei ----------
   const machenBtn = $('machen-btn');
   function ergebnisZuruecksetzen() {
     if (zustand.dateiUrl) { URL.revokeObjectURL(zustand.dateiUrl); zustand.dateiUrl = null; }
-    leere($('status-3'));
+    leere($('status-4'));
     $('speichern-bereich').classList.add('versteckt');
     $('pruef-details').classList.add('versteckt');
+    $('ergebnis-bild').classList.add('versteckt');
   }
-  function schritteFreigeben() {
-    const bild = !!zustand.bild;
-    const format = bild && !!formatGewaehlt();
+  ['kanten', 'schaerfen', 'logo'].forEach((id) => $(id).addEventListener('change', ergebnisZuruecksetzen));
+  function freigeben() {
+    const bild = !!zustand.motiv;
+    let groesseOk = false;
+    if (bild) { try { R.pruefeBreite(zustand.motiv, breiteCm()); groesseOk = true; } catch (e) { groesseOk = false; } }
     $('schritt-2').classList.toggle('aus', !bild);
-    $('schritt-3').classList.toggle('aus', !format);
-    document.querySelectorAll('input[name=format]').forEach((r) => { r.disabled = !bild; });
-    $('frei-an').disabled = !bild;
-    $('frei-breite').disabled = !bild || !$('frei-an').checked;
-    $('frei-hoehe').disabled = !bild || !$('frei-an').checked;
-    machenBtn.disabled = !format;
+    $('schritt-3').classList.toggle('aus', !bild);
+    $('schritt-4').classList.toggle('aus', !groesseOk);
+    ['hg-btn', 'toleranz', 'innen', 'breite', 'breite-minus', 'breite-plus'].forEach((id) => { $(id).disabled = !bild; });
+    document.querySelectorAll('.schnell-btn').forEach((b) => { b.disabled = !bild; });
+    machenBtn.disabled = !groesseOk;
   }
 
-  // Einfache Sätze zu den Prüfpunkten, für Stopp und Achtung
-  const LABEL_EINFACH = {
-    aufloesung: { rot: 'Das Bild ist zu klein für diese Größe.', gelb: 'Das Bild wird etwas unscharf.' },
-    hintergrund: { gelb: 'Das Bild hat keinen durchsichtigen Hintergrund. Das ganze Rechteck wird gedruckt.' },
-    halbtransparenz: { gelb: 'Das Bild hat weiche Kanten.' },
+  const EINFACH = {
+    hintergrund: 'Das Bild hat keinen durchsichtigen Hintergrund. Das ganze Rechteck wird gedruckt.',
+    halbtransparenz: 'Das Bild hat weiche Kanten.',
   };
-  function einfacheGruende(punkte, ampel) {
-    return punkte.filter((x) => x.ampel === ampel && LABEL_EINFACH[x.schluessel] && LABEL_EINFACH[x.schluessel][ampel])
-      .map((x) => LABEL_EINFACH[x.schluessel][ampel]).join(' ');
-  }
   machenBtn.addEventListener('click', async () => {
     ergebnisZuruecksetzen();
     machenBtn.disabled = true;
-    zeigeStatus($('status-3'), 'warten', 'Die Druck-Datei wird gemacht. Das kann eine Minute dauern.');
+    zeigeStatus($('status-4'), 'warten', 'Die Druck-Datei wird gemacht. Bei großen Drucken kann das eine Minute dauern.');
     await kurzWarten();
-    const e = einstellungen();
     let daten;
     try {
-      daten = await R.erzeugeRipDatei(zustand.bild, e.code, e.breiteMm, e.hoeheMm, e.anpassung, e.kantenHaerten);
+      daten = await R.erzeugeRipDatei(zustand.motiv, breiteCm(), {
+        kantenGlaetten: $('kanten').checked, schaerfen: $('schaerfen').checked, logoGlaetten: $('logo').checked,
+      });
     } catch (fehler) {
       machenBtn.disabled = false;
-      zeigeStatus($('status-3'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', fehler), true);
+      zeigeStatus($('status-4'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', fehler), true);
       return;
     }
     machenBtn.disabled = false;
-
     const p = daten.bericht;
     const liste = $('pruef-liste');
     liste.replaceChildren();
@@ -515,23 +566,22 @@
       li.append(z, t); liste.appendChild(li);
     });
     $('pruef-details').classList.remove('versteckt');
+    $('ergebnis-img').src = daten.vorschauUrl;
+    $('ergebnis-bild').classList.remove('versteckt');
 
-    if (p.download_erlaubt) {
-      zustand.dateiUrl = URL.createObjectURL(daten.blob);
-      $('speichern-link').href = zustand.dateiUrl;
-      $('speichern-link').download = 'texstyle-dtf-rip.png';
-      $('speichern-bereich').classList.remove('versteckt');
-      zeigeStatus($('status-3'), p.gesamt_ampel, p.gesamt_ampel === 'gruen'
-        ? 'Die Datei für den Drucker ist fertig. Drück auf „Datei speichern“.'
-        : 'Die Datei ist fertig, hat aber einen Hinweis. ' + einfacheGruende(p.punkte, 'gelb') + ' Eine Fachkraft soll kurz draufschauen.');
-      $('speichern-link').focus();
-    } else {
-      const grund = einfacheGruende(p.punkte, 'rot');
-      zeigeStatus($('status-3'), 'rot', 'Die Datei kann so nicht gedruckt werden. ' + (grund ? grund + ' ' : '') + 'Bitte hol eine Fachkraft.', true);
-    }
+    const cm = (mm) => formatCm(mm / 10);
+    const groesse = cm(daten.groesse.breiteMm) + ' × ' + cm(daten.groesse.hoeheMm) + ' cm';
+    zustand.dateiUrl = URL.createObjectURL(daten.blob);
+    $('speichern-link').href = zustand.dateiUrl;
+    $('speichern-link').download = 'texstyle-dtf-' + cm(daten.groesse.breiteMm).replace(',', '_') + 'cm.png';
+    $('speichern-bereich').classList.remove('versteckt');
+    const hinweise = p.punkte.filter((x) => x.ampel === 'gelb' && EINFACH[x.schluessel]).map((x) => EINFACH[x.schluessel]).join(' ');
+    zeigeStatus($('status-4'), p.gesamt_ampel === 'gruen' ? 'gruen' : 'gelb',
+      'Die Datei für den Drucker ist fertig: ' + groesse + ', 300 dpi. ' + (hinweise ? hinweise + ' ' : '') + 'Drück auf „Datei speichern“.');
+    $('speichern-link').focus();
   });
 
-  schritteFreigeben();
+  freigeben();
 
   // Offline-Betrieb und „Zum Startbildschirm hinzufügen“ (Android): Service Worker
   if ('serviceWorker' in navigator && window.isSecureContext) {
