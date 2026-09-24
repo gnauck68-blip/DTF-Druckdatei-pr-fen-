@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+workdir/uploads/*
+workdir/outputs/*
+!workdir/uploads/.gitkeep
+!workdir/outputs/.gitkeep
+.venv/

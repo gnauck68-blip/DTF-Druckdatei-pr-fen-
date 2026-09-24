@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pillow
+numpy
+pikepdf
+python-multipart
+pytest
+httpx

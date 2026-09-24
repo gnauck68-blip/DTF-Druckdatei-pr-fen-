@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TexStyle DTF</title>
+<meta name="theme-color" content="#0b4a8b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  /* Farben mit mindestens 7:1 Kontrast für Text (WCAG 2.2, Stufe AAA), weil
+     manche Beschäftigte schlecht sehen. Alle Größen in rem, damit der Knopf
+     „Große Schrift“ die ganze Seite mitvergrößert. */
+  :root{
+    --bg:#eef0f3; --panel:#ffffff; --ink:#111417; --muted:#3b4249;
+    --accent:#0b4a8b; --accent-dunkel:#083866; --line:#8a939c;
+    --fokus:#ffbf00;
+    --gut:#0a4a22; --gut-bg:#e2f3e7;
+    --achtung:#553800; --achtung-bg:#fff1c9;
+    --stopp:#86101a; --stopp-bg:#fde4e4;
+  }
+  html{font-size:20px;}
+  html.gross{font-size:25px;}
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:1rem; line-height:1.5;
+  }
+  /* Deutlich sichtbarer Fokus für Tastaturbedienung */
+  :focus-visible{outline:.25rem solid var(--fokus); outline-offset:.15rem; box-shadow:0 0 0 .4rem var(--ink);}
+
+  .kopf{max-width:52rem; margin:0 auto; padding:1rem 1rem .25rem; display:flex; flex-wrap:wrap; align-items:center; gap:.75rem 1rem;}
+  .kopf h1{margin:0; font-size:1.6rem; flex:1 1 auto;}
+  .kopf-knoepfe{display:flex; gap:.5rem; flex-wrap:wrap;}
+  main{max-width:52rem; margin:0 auto; padding:.5rem 1rem 3rem; display:grid; grid-template-columns:minmax(0,1fr); gap:1.25rem;}
+
+  .schritt{
+    background:var(--panel); border:.1rem solid var(--line); border-radius:.75rem;
+    padding:1.25rem;
+  }
+  .schritt.aus{opacity:.55;}
+  .schritt-kopf{display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem;}
+  .schritt-nr{
+    flex:0 0 auto; width:2.6rem; height:2.6rem; border-radius:50%;
+    background:var(--accent); color:#fff; font-weight:800; font-size:1.3rem;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .schritt-kopf h2{margin:0; font-size:1.3rem; flex:1 1 auto; min-width:0; hyphens:auto;}
+  .schritt p{margin:.25rem 0 .75rem;}
+  svg.symbol{width:2.4rem; height:2.4rem; flex:0 0 auto;}
+
+  button, .knopf{
+    display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+    min-height:3.2rem; padding:.6rem 1.3rem; border-radius:.6rem;
+    border:.15rem solid var(--accent); background:var(--accent); color:#fff;
+    font:inherit; font-weight:700; cursor:pointer; text-decoration:none;
+    max-width:100%; text-align:center;
+  }
+  button:hover, .knopf:hover{background:var(--accent-dunkel);}
+  button.leise{background:#fff; color:var(--accent);}
+  button.leise:hover{background:#e6eef7;}
+  button[aria-pressed="true"]{background:var(--accent-dunkel); color:#fff;}
+  button:disabled{background:#d5d9dd; border-color:#8a939c; color:#3b4249; cursor:not-allowed;}
+  .gross-knopf{width:100%; min-height:4.2rem; font-size:1.25rem; padding-left:.6rem; padding-right:.6rem;}
+  button svg, .knopf svg{width:1.6rem; height:1.6rem; flex:0 0 auto;}
+
+  .ablage{
+    border:.2rem dashed var(--line); border-radius:.75rem; padding:1rem;
+    display:grid; grid-template-columns:minmax(0,1fr); gap:.75rem; justify-items:center; text-align:center;
+  }
+  .ablage.drueber{border-color:var(--accent); background:#e6eef7;}
+  input[type=file]{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;}
+
+  .vorschau{display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-top:1rem;}
+  /* Karomuster zeigt, wo das Bild durchsichtig ist */
+  .karo{
+    background-color:#fff;
+    background-image:conic-gradient(#c9ced3 25%, transparent 0 50%, #c9ced3 0 75%, transparent 0);
+    background-size:1.2rem 1.2rem; border:.1rem solid var(--line); border-radius:.4rem;
+    padding:.25rem; line-height:0;
+  }
+  .karo{max-width:100%;}
+  .karo img{max-width:min(12rem, 100%); max-height:12rem;}
+
+  .formate{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr)); gap:.75rem; border:0; padding:0; margin:0;}
+  .formate legend{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0);}
+  .kachel{position:relative;}
+  .kachel input{position:absolute; opacity:0; inset:0; width:100%; height:100%; margin:0; cursor:pointer;}
+  .kachel span.inhalt{
+    display:flex; flex-direction:column; align-items:center; gap:.4rem; text-align:center;
+    border:.15rem solid var(--line); border-radius:.6rem; padding:.8rem .5rem; min-height:100%;
+  }
+  .kachel .blatt{border:.15rem solid var(--ink); background:#fff; border-radius:.15rem;}
+  .kachel b{font-size:1.3rem;}
+  .kachel small{font-size:.85rem; color:var(--muted);}
+  .kachel input:checked + span.inhalt{border-color:var(--accent); background:#e6eef7; box-shadow:inset 0 0 0 .15rem var(--accent);}
+  .kachel input:checked + span.inhalt::after{content:"✓ gewählt"; font-weight:700; color:var(--accent);}
+  .kachel input:focus-visible + span.inhalt{outline:.25rem solid var(--fokus); outline-offset:.15rem; box-shadow:0 0 0 .4rem var(--ink);}
+
+  /* Ampel: Form + Wort + Farbe, nie nur Farbe */
+  .status{display:flex; gap:.9rem; align-items:flex-start; margin-top:1rem; padding:1rem; border-radius:.6rem; border:.15rem solid;}
+  .status svg{width:2.8rem; height:2.8rem; flex:0 0 auto;}
+  .status b{display:block; font-size:1.3rem;}
+  .status.gruen{background:var(--gut-bg); color:var(--gut); border-color:var(--gut);}
+  .status.gelb{background:var(--achtung-bg); color:var(--achtung); border-color:var(--achtung);}
+  .status.rot{background:var(--stopp-bg); color:var(--stopp); border-color:var(--stopp);}
+  .status.warten{background:#e6eef7; color:var(--accent-dunkel); border-color:var(--accent);}
+  .dreht{animation:dreh 1.2s linear infinite;}
+  @keyframes dreh{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion: reduce){.dreht{animation:none;}}
+
+  details{margin-top:1rem; border-top:.1rem solid var(--line); padding-top:.75rem;}
+  summary{cursor:pointer; font-weight:700; min-height:2.4rem; display:flex; align-items:center;}
+  .fach{font-size:.9rem;}
+  .fach ul{list-style:none; padding:0; margin:.5rem 0 0; display:grid; gap:.4rem;}
+  .fach li{display:flex; gap:.5rem; align-items:flex-start;}
+  .fach li .zeichen{font-weight:800; min-width:5.5rem;}
+
+  .feld{display:grid; gap:.25rem; margin:.75rem 0;}
+  .feld label{font-weight:700;}
+  .feld small{color:var(--muted);}
+  .feld input, .feld select{
+    min-width:0; width:100%;
+    font:inherit; padding:.5rem .7rem; min-height:3rem; border:.15rem solid var(--line); border-radius:.5rem; background:#fff; color:var(--ink);
+  }
+  .zwei{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap:.75rem;}
+  .auswahl{display:grid; gap:.5rem; margin:.5rem 0;}
+  .auswahl label{display:flex; gap:.6rem; align-items:flex-start; font-weight:400;}
+  .auswahl input{width:1.4rem; height:1.4rem; margin-top:.2rem; flex:0 0 auto;}
+  .links{display:grid; gap:.5rem; margin-top:.75rem;}
+  .versteckt{display:none !important;}
+  /* Schmale Bildschirme: etwas kleinere Grundschrift und weniger Rand, damit
+     auch mit „Große Schrift“ keine Wörter zerrissen werden */
+  @media (max-width: 30rem){
+    html{font-size:18px;}
+    html.gross{font-size:21px;}
+    main{padding:.5rem .6rem 2rem;}
+    .kopf{padding:.75rem .6rem .25rem;}
+    .schritt{padding:.9rem;}
+    .schritt-kopf svg.symbol{display:none;}
+    .ablage{padding:.6rem;}
+    .status{padding:.75rem; gap:.6rem;}
+    .status svg{width:2.2rem; height:2.2rem;}
+  }
+  .fachbereich{background:var(--panel); border:.1rem solid var(--line); border-radius:.75rem; padding:0 1.25rem 1.25rem;}
+  .fachbereich > summary{font-size:1.15rem; padding-top:1rem;}
+  .fachbereich > details{margin-top:1.25rem;}
+  .fachbereich h3{margin:1.25rem 0 .25rem; font-size:1.1rem;}
+</style>
+</head>
+<body>
+
+<!-- Wiederverwendbare Symbole -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-bild" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-groesse" viewBox="0 0 24 24"><rect x="4" y="3" width="11" height="15" fill="none" stroke="currentColor" stroke-width="2"/><path d="M18 3v15M16.5 5 18 3l1.5 2M16.5 16 18 18l1.5-2M4 21h11M6 19.5 4 21l2 1.5M13 19.5 15 21l-2 1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-drucken" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="14" width="10" height="7" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-gut" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-achtung" viewBox="0 0 24 24"><path d="M12 2 23 21H1z" fill="currentColor"/><path d="M12 9v5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.5" fill="#fff"/></symbol>
+  <symbol id="i-stopp" viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z" fill="currentColor"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-warten" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="42 15" stroke-linecap="round"/></symbol>
+  <symbol id="i-sprechen" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-speichern" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 19h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-schrift" viewBox="0 0 24 24"><path d="M2 20 7 6l5 14M4 15h6M14 20l4-10 4 10M15.5 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="kopf">
+  <h1>TexStyle DTF</h1>
+  <div class="kopf-knoepfe">
+    <button type="button" class="leise" id="schrift-btn" aria-pressed="false">
+      <svg aria-hidden="true"><use href="#i-schrift"/></svg>Große Schrift
+    </button>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="hilfe">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
+  </div>
+  <p id="hilfe" style="margin:0; flex-basis:100%;">So geht es: 1. Bild aussuchen. 2. Größe wählen. 3. Druck-Datei machen.</p>
+</header>
+
+<main>
+
+  <!-- Schritt 1 -->
+  <section class="schritt" id="schritt-1" aria-labelledby="titel-1">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">1</span>
+      <h2 id="titel-1">Bild aussuchen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-bild"/></svg>
+    </div>
+    <p id="text-1">Such das Bild aus, das gedruckt werden soll.</p>
+    <div class="ablage" id="ablage">
+      <button type="button" class="gross-knopf" id="bild-btn">
+        <svg aria-hidden="true"><use href="#i-bild"/></svg>Bild aussuchen
+      </button>
+      <span>Du kannst das Bild auch mit der Maus hierher ziehen.</span>
+      <input type="file" id="datei-input" tabindex="-1" aria-hidden="true"
+             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+    </div>
+    <div id="status-1" aria-live="polite"></div>
+    <div class="vorschau versteckt" id="vorschau">
+      <div class="karo"><img id="vorschau-bild" alt="Das ausgesuchte Bild"></div>
+      <div id="bild-info"></div>
+    </div>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-1" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
+  </section>
+
+  <!-- Schritt 2 -->
+  <section class="schritt aus" id="schritt-2" aria-labelledby="titel-2">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">2</span>
+      <h2 id="titel-2">Größe wählen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-groesse"/></svg>
+    </div>
+    <p id="text-2">Wie groß soll der Druck werden? Tipp auf eine Größe.</p>
+    <fieldset class="formate" id="formate">
+      <legend>Größe</legend>
+      <label class="kachel"><input type="radio" name="format" value="A6" disabled>
+        <span class="inhalt"><span class="blatt" style="width:1.6rem;height:2.26rem" aria-hidden="true"></span><b>A6</b><span>wie eine Postkarte</span><small>10,5 × 14,8 cm</small></span></label>
+      <label class="kachel"><input type="radio" name="format" value="A5" disabled>
+        <span class="inhalt"><span class="blatt" style="width:2.26rem;height:3.2rem" aria-hidden="true"></span><b>A5</b><span>ein halbes Blatt</span><small>14,8 × 21 cm</small></span></label>
+      <label class="kachel"><input type="radio" name="format" value="A4" disabled>
+        <span class="inhalt"><span class="blatt" style="width:3.2rem;height:4.53rem" aria-hidden="true"></span><b>A4</b><span>ein Blatt Papier</span><small>21 × 29,7 cm</small></span></label>
+      <label class="kachel"><input type="radio" name="format" value="A3" disabled>
+        <span class="inhalt"><span class="blatt" style="width:4.53rem;height:6.4rem" aria-hidden="true"></span><b>A3</b><span>zwei Blätter groß</span><small>29,7 × 42 cm</small></span></label>
+    </fieldset>
+    <div id="status-2" aria-live="polite"></div>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-2 status-2" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
+  </section>
+
+  <!-- Schritt 3 -->
+  <section class="schritt aus" id="schritt-3" aria-labelledby="titel-3">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">3</span>
+      <h2 id="titel-3">Druck-Datei machen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-drucken"/></svg>
+    </div>
+    <p id="text-3">Drück auf den Knopf. Die App macht die Datei für den Drucker und prüft sie.</p>
+    <button type="button" class="gross-knopf" id="machen-btn" disabled>
+      <svg aria-hidden="true"><use href="#i-drucken"/></svg>Druck-Datei machen
+    </button>
+    <div id="status-3" aria-live="polite"></div>
+    <div class="links versteckt" id="speichern-bereich">
+      <a class="knopf gross-knopf" id="speichern-link" href="#" download>
+        <svg aria-hidden="true"><use href="#i-speichern"/></svg>Datei speichern
+      </a>
+    </div>
+    <details class="fach versteckt" id="pruef-details">
+      <summary>Genaue Prüfung (für Fachkräfte)</summary>
+      <ul id="pruef-liste"></ul>
+    </details>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-3 status-3" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
+  </section>
+
+  <!-- Fachkräfte -->
+  <details class="fachbereich" id="fachbereich">
+    <summary>Für Fachkräfte: weitere Einstellungen</summary>
+
+    <h3>Eigene Größe</h3>
+    <div class="auswahl">
+      <label><input type="checkbox" id="frei-an" disabled> Eigene Größe in Millimetern statt A6 bis A3</label>
+    </div>
+    <div class="zwei">
+      <div class="feld"><label for="frei-breite">Breite (mm)</label><input type="number" id="frei-breite" min="10" max="3000" step="1" value="210" disabled></div>
+      <div class="feld"><label for="frei-hoehe">Höhe (mm)</label><input type="number" id="frei-hoehe" min="10" max="3000" step="1" value="297" disabled></div>
+    </div>
+
+    <h3>Bild ins Format setzen</h3>
+    <div class="auswahl" role="radiogroup" aria-label="Bild ins Format setzen">
+      <label><input type="radio" name="anpassung" value="einpassen" checked>
+        <span><b>Einpassen</b> (Standard): Das ganze Motiv passt in die Größe, nichts wird abgeschnitten. Die Datei ist so groß wie das Motiv.</span></label>
+      <label><input type="radio" name="anpassung" value="fuellen">
+        <span><b>Fläche füllen</b>: Das Motiv füllt die Größe ganz aus. Was übersteht, wird mittig abgeschnitten.</span></label>
+    </div>
+
+    <h3>Kanten</h3>
+    <div class="auswahl">
+      <label><input type="checkbox" id="kanten-haerten" checked>
+        <span><b>Kanten hart machen</b> (empfohlen): Halb durchsichtige Pixel werden ganz sichtbar oder ganz durchsichtig. So legt der RIP die Weißunterlage sauber an.</span></label>
+    </div>
+
+    <h3>Was die App macht und was der RIP macht</h3>
+    <p class="fach">Die App liefert ein PNG in RGB mit sRGB-Profil, mit durchsichtigem Hintergrund, exakt in Druckgröße bei 300 dpi. Farbumrechnung mit dem Druckerprofil, Rasterung und Weißunterlage macht der RIP des Druckers. Darum rechnet die App keine Farben in CMYK um.</p>
+  </details>
+
+</main>
+
+<script src="rip.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+
+  // Alles wird im Browser gerechnet (rip.js); das Bild verlässt das Gerät nie.
+  const R = window.TexStyleRip;
+  const zustand = { bild: null, pruefNr: 0, dateiUrl: null };
+
+  // ---------- Große Schrift (wird im Browser gemerkt, falls erlaubt) ----------
+  const schriftBtn = $('schrift-btn');
+  function setzeSchrift(an) {
+    document.documentElement.classList.toggle('gross', an);
+    schriftBtn.setAttribute('aria-pressed', an ? 'true' : 'false');
+  }
+  try { setzeSchrift(localStorage.getItem('texstyle-schrift') === 'gross'); } catch (e) { /* ohne Speicher */ }
+  schriftBtn.addEventListener('click', () => {
+    const an = !document.documentElement.classList.contains('gross');
+    setzeSchrift(an);
+    try { localStorage.setItem('texstyle-schrift', an ? 'gross' : 'normal'); } catch (e) { /* ohne Speicher */ }
+  });
+
+  // ---------- Vorlesen mit den Stimmen des Betriebssystems (offline) ----------
+  const sprache = window.speechSynthesis;
+  function deutscheStimme() {
+    // Nur Stimmen, die auf diesem Rechner laufen (localService). Online-Stimmen
+    // (z. B. „Natural“-Stimmen in Edge, „Google Deutsch“ in Chrome) schicken den
+    // Text an den Hersteller; das wäre eine Übermittlung an Dritte (DSGVO).
+    if (!sprache) return null;
+    return sprache.getVoices().find((v) => v.localService && v.lang && v.lang.toLowerCase().startsWith('de')) || null;
+  }
+  function vorlesenPruefen() {
+    const da = !!deutscheStimme();
+    document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
+  }
+  if (sprache) {
+    vorlesenPruefen();
+    sprache.addEventListener('voiceschanged', vorlesenPruefen);
+  }
+  function vorlesen(text) {
+    const stimme = deutscheStimme();
+    if (!stimme || !text) return;
+    sprache.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
+    sprache.speak(u);
+  }
+  document.querySelectorAll('.vorlesen-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const text = btn.dataset.lies.split(' ').map((id) => ($(id) ? $(id).innerText : '')).join(' ');
+      vorlesen(text.replace(/\s+/g, ' ').trim());
+    });
+  });
+
+  // ---------- Statusanzeige: Form + Wort + Farbe ----------
+  const STATUS = {
+    gruen: { symbol: 'i-gut', wort: 'Gut' },
+    gelb: { symbol: 'i-achtung', wort: 'Achtung' },
+    rot: { symbol: 'i-stopp', wort: 'Stopp' },
+    warten: { symbol: 'i-warten', wort: 'Bitte warten' },
+  };
+  function zeigeStatus(ziel, art, satz, fehler) {
+    const s = STATUS[art];
+    const box = document.createElement('div');
+    box.className = 'status ' + art;
+    if (fehler) box.setAttribute('role', 'alert');
+    box.innerHTML = '<svg aria-hidden="true"' + (art === 'warten' ? ' class="dreht"' : '') + '><use href="#' + s.symbol + '"/></svg><div><b></b><span></span></div>';
+    box.querySelector('b').textContent = s.wort + '.';
+    box.querySelector('span').textContent = satz;
+    ziel.replaceChildren(box);
+  }
+  function leere(ziel) { ziel.replaceChildren(); }
+
+  // Bekannte Fehler (RipFehler) sind schon Klartext; alles andere bekommt einen einfachen Satz
+  function fehlerSatz(einfach, fehler) {
+    if (fehler instanceof R.RipFehler) return fehler.message;
+    return einfach + (fehler && fehler.message ? ' Hinweis für die Fachkraft: ' + fehler.message : '');
+  }
+  // Kurz warten, damit die Warteanzeige erscheint, bevor die Rechnung den Browser beschäftigt
+  const kurzWarten = () => new Promise((ok) => setTimeout(ok, 30));
+
+  // ---------- Schritt 1: Bild ----------
+  const dateiInput = $('datei-input');
+  const ablage = $('ablage');
+  $('bild-btn').addEventListener('click', () => dateiInput.click());
+  dateiInput.addEventListener('change', () => { if (dateiInput.files.length) hochladen(dateiInput.files[0]); dateiInput.value = ''; });
+  ['dragenter', 'dragover'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.add('drueber'); }));
+  ['dragleave', 'drop'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.remove('drueber'); }));
+  ablage.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) hochladen(e.dataTransfer.files[0]); });
+
+  async function hochladen(datei) {
+    zustand.bild = null;
+    schritteFreigeben();
+    ergebnisZuruecksetzen();
+    leere($('status-2'));
+    zeigeStatus($('status-1'), 'warten', 'Das Bild wird geladen.');
+    await kurzWarten();
+    try {
+      zustand.bild = await R.ladeBild(datei);
+    } catch (e) {
+      $('vorschau').classList.add('versteckt');
+      zeigeStatus($('status-1'), 'rot', fehlerSatz('Das Bild geht nicht. Nimm ein anderes Bild (JPG, PNG oder WebP).', e), true);
+      return;
+    }
+    const b = zustand.bild;
+    $('vorschau-bild').src = R.vorschau(b.leinwand, 600);
+    $('bild-info').textContent = 'Bildgröße: ' + b.breite + ' × ' + b.hoehe + ' Pixel' + (b.randEntfernt ? ' (leerer Rand entfernt)' : '');
+    $('vorschau').classList.remove('versteckt');
+    zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da. Jetzt bei Schritt 2 die Größe wählen.');
+    schritteFreigeben();
+    if (formatGewaehlt()) pruefen();
+  }
+
+  // ---------- Schritt 2: Größe ----------
+  function formatGewaehlt() {
+    if ($('frei-an').checked) return 'CUSTOM';
+    const r = document.querySelector('input[name=format]:checked');
+    return r ? r.value : null;
+  }
+  function einstellungen() {
+    return {
+      code: formatGewaehlt(),
+      breiteMm: $('frei-breite').value,
+      hoeheMm: $('frei-hoehe').value,
+      anpassung: document.querySelector('input[name=anpassung]:checked').value,
+      kantenHaerten: $('kanten-haerten').checked,
+    };
+  }
+  document.querySelectorAll('input[name=format]').forEach((r) => r.addEventListener('change', () => { $('frei-an').checked = false; eingabeGeaendert(); }));
+  document.querySelectorAll('input[name=anpassung]').forEach((r) => r.addEventListener('change', eingabeGeaendert));
+  $('kanten-haerten').addEventListener('change', ergebnisZuruecksetzen);
+  $('frei-an').addEventListener('change', () => {
+    if ($('frei-an').checked) document.querySelectorAll('input[name=format]').forEach((r) => { r.checked = false; });
+    eingabeGeaendert();
+  });
+  let tippPause = null;
+  ['frei-breite', 'frei-hoehe'].forEach((id) => $(id).addEventListener('input', () => {
+    if (!$('frei-an').checked) return;
+    clearTimeout(tippPause); tippPause = setTimeout(eingabeGeaendert, 500);
+  }));
+
+  function eingabeGeaendert() {
+    ergebnisZuruecksetzen();
+    schritteFreigeben();
+    if (zustand.bild && formatGewaehlt()) pruefen(); else leere($('status-2'));
+  }
+
+  const PRUEF_SATZ = {
+    gruen: 'Das Bild ist scharf genug für diese Größe.',
+    gelb: 'Das Bild wird etwas unscharf. Besser eine kleinere Größe wählen.',
+    rot: 'Das Bild ist zu klein für diese Größe. Wähl eine kleinere Größe oder ein größeres Bild.',
+  };
+  function pruefen() {
+    const e = einstellungen();
+    let ergebnis;
+    try {
+      ergebnis = R.pruefeGroesse(zustand.bild, e.code, e.breiteMm, e.hoeheMm, e.anpassung);
+    } catch (fehler) {
+      zeigeStatus($('status-2'), 'rot', fehlerSatz('Die Größe geht so nicht.', fehler), true);
+      return;
+    }
+    const cm = (mm) => (mm / 10).toFixed(1).replace('.', ',');
+    const g = ergebnis.groesse, a = ergebnis.aufloesung;
+    zeigeStatus($('status-2'), a.ampel, PRUEF_SATZ[a.ampel] + ' Druckgröße: ' + cm(g.breiteMm) + ' × ' + cm(g.hoeheMm) + ' cm (' + Math.round(a.dpi) + ' dpi).');
+  }
+
+  // ---------- Schritt 3: Druck-Datei ----------
+  const machenBtn = $('machen-btn');
+  function ergebnisZuruecksetzen() {
+    if (zustand.dateiUrl) { URL.revokeObjectURL(zustand.dateiUrl); zustand.dateiUrl = null; }
+    leere($('status-3'));
+    $('speichern-bereich').classList.add('versteckt');
+    $('pruef-details').classList.add('versteckt');
+  }
+  function schritteFreigeben() {
+    const bild = !!zustand.bild;
+    const format = bild && !!formatGewaehlt();
+    $('schritt-2').classList.toggle('aus', !bild);
+    $('schritt-3').classList.toggle('aus', !format);
+    document.querySelectorAll('input[name=format]').forEach((r) => { r.disabled = !bild; });
+    $('frei-an').disabled = !bild;
+    $('frei-breite').disabled = !bild || !$('frei-an').checked;
+    $('frei-hoehe').disabled = !bild || !$('frei-an').checked;
+    machenBtn.disabled = !format;
+  }
+
+  // Einfache Sätze zu den Prüfpunkten, für Stopp und Achtung
+  const LABEL_EINFACH = {
+    aufloesung: { rot: 'Das Bild ist zu klein für diese Größe.', gelb: 'Das Bild wird etwas unscharf.' },
+    hintergrund: { gelb: 'Das Bild hat keinen durchsichtigen Hintergrund. Das ganze Rechteck wird gedruckt.' },
+    halbtransparenz: { gelb: 'Das Bild hat weiche Kanten.' },
+  };
+  function einfacheGruende(punkte, ampel) {
+    return punkte.filter((x) => x.ampel === ampel && LABEL_EINFACH[x.schluessel] && LABEL_EINFACH[x.schluessel][ampel])
+      .map((x) => LABEL_EINFACH[x.schluessel][ampel]).join(' ');
+  }
+  machenBtn.addEventListener('click', async () => {
+    ergebnisZuruecksetzen();
+    machenBtn.disabled = true;
+    zeigeStatus($('status-3'), 'warten', 'Die Druck-Datei wird gemacht. Das kann eine Minute dauern.');
+    await kurzWarten();
+    const e = einstellungen();
+    let daten;
+    try {
+      daten = await R.erzeugeRipDatei(zustand.bild, e.code, e.breiteMm, e.hoeheMm, e.anpassung, e.kantenHaerten);
+    } catch (fehler) {
+      machenBtn.disabled = false;
+      zeigeStatus($('status-3'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', fehler), true);
+      return;
+    }
+    machenBtn.disabled = false;
+
+    const p = daten.bericht;
+    const liste = $('pruef-liste');
+    liste.replaceChildren();
+    p.punkte.forEach((punkt) => {
+      const li = document.createElement('li');
+      const z = document.createElement('span'); z.className = 'zeichen';
+      z.textContent = { gruen: '✓ Gut', gelb: '! Achtung', rot: '✗ Stopp' }[punkt.ampel];
+      const t = document.createElement('span'); t.textContent = punkt.label + ': ' + punkt.hinweis;
+      li.append(z, t); liste.appendChild(li);
+    });
+    $('pruef-details').classList.remove('versteckt');
+
+    if (p.download_erlaubt) {
+      zustand.dateiUrl = URL.createObjectURL(daten.blob);
+      $('speichern-link').href = zustand.dateiUrl;
+      $('speichern-link').download = 'texstyle-dtf-rip.png';
+      $('speichern-bereich').classList.remove('versteckt');
+      zeigeStatus($('status-3'), p.gesamt_ampel, p.gesamt_ampel === 'gruen'
+        ? 'Die Datei für den Drucker ist fertig. Drück auf „Datei speichern“.'
+        : 'Die Datei ist fertig, hat aber einen Hinweis. ' + einfacheGruende(p.punkte, 'gelb') + ' Eine Fachkraft soll kurz draufschauen.');
+      $('speichern-link').focus();
+    } else {
+      const grund = einfacheGruende(p.punkte, 'rot');
+      zeigeStatus($('status-3'), 'rot', 'Die Datei kann so nicht gedruckt werden. ' + (grund ? grund + ' ' : '') + 'Bitte hol eine Fachkraft.', true);
+    }
+  });
+
+  schritteFreigeben();
+
+  // Offline-Betrieb und „Zum Startbildschirm hinzufügen“ (Android): Service Worker
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* ohne Offline-Speicher weiter nutzbar */ });
+  }
+})();
+</script>
+</body>
+</html>

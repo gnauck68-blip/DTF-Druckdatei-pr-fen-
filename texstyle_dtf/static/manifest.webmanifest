@@ -1,0 +1,15 @@
+{
+  "name": "TexStyle DTF",
+  "short_name": "TexStyle DTF",
+  "description": "Macht aus einem Bild die Datei für den RIP des DTF-Druckers. Läuft auf dem Gerät, auch ohne Internet.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef0f3",
+  "theme_color": "#0b4a8b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
