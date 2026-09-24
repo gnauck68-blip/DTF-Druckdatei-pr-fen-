@@ -59,23 +59,34 @@
     const alle = deutscheStimmen();
     return alle.find((v) => v.voiceURI === stimmeWahl.value) || alle[0] || null;
   }
-  function stimmenZeigen() {
+  // Feste Namen, damit alle von derselben Stimme sprechen: die beste Frauenstimme heißt
+  // „Frau Isabella“, die beste Männerstimme „Herr Michael“. Weitere Stimmen gleichen
+  // Geschlechts fallen weg; Stimmen ohne erkennbares Geschlecht heißen „Stimme 1“ usw.
+  function stimmenAngebot() {
     const alle = deutscheStimmen();
+    const frau = alle.find((v) => geschlecht(v) === 'Frau');
+    const mann = alle.find((v) => geschlecht(v) === 'Mann');
+    const angebot = [];
+    if (frau) angebot.push({ stimme: frau, name: 'Frau Isabella' });
+    if (mann) angebot.push({ stimme: mann, name: 'Herr Michael' });
+    alle.filter((v) => !geschlecht(v)).forEach((v, i) => angebot.push({ stimme: v, name: 'Stimme ' + (i + 1) }));
+    return angebot;
+  }
+  function stimmenZeigen() {
+    const angebot = stimmenAngebot();
     const gemerkt = stimmeWahl.value || leseEinstellung('texstyle-stimme');
-    let nummer = 0;
-    stimmeWahl.replaceChildren(...alle.map((v) => {
-      nummer += 1;
-      const art = geschlecht(v);
-      const name = v.name.replace(/^Microsoft\s+/i, '').replace(/\s*[-–(].*$/, '').trim();
+    stimmeWahl.replaceChildren(...angebot.map((a) => {
       const o = document.createElement('option');
-      o.value = v.voiceURI;
-      o.textContent = art ? art + ': ' + name : 'Stimme ' + nummer + ': ' + name;
+      o.value = a.stimme.voiceURI;
+      o.textContent = a.name;
       return o;
     }));
-    if (alle.some((v) => v.voiceURI === gemerkt)) stimmeWahl.value = gemerkt;
-    const da = alle.length > 0;
+    if (angebot.some((a) => a.stimme.voiceURI === gemerkt)) stimmeWahl.value = gemerkt;
+    const da = angebot.length > 0;
     document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
-    $('stimme-feld').classList.toggle('versteckt', !da);
+    // Auswahl nur, wenn es etwas zu wählen gibt. Android-Chrome meldet meist nur eine
+    // Stimme; dort wird Frau oder Mann in den Android-Einstellungen gewählt.
+    $('stimme-feld').classList.toggle('versteckt', angebot.length < 2);
   }
   // Zeilen ohne Satzzeichen bekommen einen Punkt, sonst liest die Stimme sie ohne Pause
   // in einem Atemzug zusammen und betont falsch.
@@ -94,7 +105,8 @@
   if (sprache) { stimmenZeigen(); sprache.addEventListener('voiceschanged', stimmenZeigen); }
   stimmeWahl.addEventListener('change', () => {
     merkeEinstellung('texstyle-stimme', stimmeWahl.value);
-    sprich('Hallo. So klinge ich.');
+    const gewaehlt = stimmeWahl.selectedOptions[0];
+    sprich('Hallo, ich bin ' + (gewaehlt ? gewaehlt.textContent : 'die neue Stimme') + '.');
   });
   document.querySelectorAll('.vorlesen-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
