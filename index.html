@@ -129,7 +129,7 @@
 </head>
 <body>
 <header>
-  <h1>DTF-Druckprüfer <span class="ver">v14</span></h1>
+  <h1>DTF-Druckprüfer <span class="ver">v15</span></h1>
   <p>Datei laden, fertig: Die App entfernt Hintergrund, schneidet zu, glättet Logos und härtet Kanten automatisch. Danach nur noch Druckbreite prüfen und exportieren. Alles läuft lokal im Browser.</p>
 </header>
 <main>
@@ -179,7 +179,7 @@
           <output id="tolVal" for="tolInput">12</output>
         </div>
         <label class="toggle">
-          <input type="checkbox" id="holesToggle" checked>
+          <input type="checkbox" id="holesToggle">
           <span>Innenflächen freistellen
             <small>Entfernt eingeschlossene Hintergrundflächen, etwa in „e“, „a“, „R“ oder „8“. Große Innenflächen über 10 % der Bildfläche bleiben sicherheitshalber erhalten.</small>
           </span>
@@ -363,7 +363,7 @@
     }
     var promise = isPdf ? loadPdf(file) : loadPng(file);
     promise.then(function(canvas){
-      analyze(canvas, isPdf, baseName(file.name), file.size);
+      analyze(canvas, isPdf, baseName(file.name), file.size, isJpg ? "jpg" : "png");
     }).catch(function(err){
       showError("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : "unbekannter Fehler") + ". Bitte prüfen, ob die Datei intakt ist.");
     });
@@ -416,7 +416,7 @@
   }
 
   // ---------- Analyse ----------
-  function analyze(canvas, isPdf, name, fileSize){
+  function analyze(canvas, isPdf, name, fileSize, ext){
     state = {
       original: canvas, canvas: canvas,
       width: canvas.width, height: canvas.height,
@@ -441,7 +441,7 @@
     widthInput.value = (Math.round(maxWcm * 10) / 10).toFixed(1);
 
     fileMeta.innerHTML =
-      "<b>" + escapeHtml(name) + (isPdf ? ".pdf (Seite 1)" : ".png") + "</b> · " +
+      "<b>" + escapeHtml(name) + (isPdf ? ".pdf (Seite 1)" : "." + escapeHtml(ext)) + "</b> · " +
       canvas.width + " × " + canvas.height + " px · " + formatBytes(fileSize);
 
     app.classList.add("show");
@@ -450,8 +450,10 @@
   }
 
   // Erzeugt aus dem Original die Arbeitsversion und zählt Alpha-Werte neu.
+  var reprocessRun = 0;
   function reprocess(){
     if (!state) return false;
+    var run = ++reprocessRun;
     state.vectorSvg = null;
     var c = state.original;
     if (removeWhiteToggle.checked){
@@ -468,7 +470,13 @@
         showError("Die Vektorisierungs-Bibliothek konnte nicht geladen werden. Logo-Glättung ist ohne Internetverbindung beim ersten Laden nicht verfügbar.");
         return finishReprocess(c);
       }
-      vectorSmooth(c).then(finishReprocess).catch(function(){
+      // Ältere Läufe verwerfen, falls inzwischen neu gerechnet wurde (Schalter geändert, neue Datei)
+      vectorSmooth(c).then(function(res){
+        if (run !== reprocessRun) return;
+        state.vectorSvg = res.svg;
+        finishReprocess(res.canvas);
+      }).catch(function(){
+        if (run !== reprocessRun) return;
         showError("Die Logo-Glättung ist fehlgeschlagen; es wird die ungeglättete Version verwendet.");
         finishReprocess(c);
       });
@@ -572,8 +580,10 @@
           numberofcolors: 32, pathomit: 6, ltres: 0.8, qtres: 0.8,
           strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
         });
-        state.vectorSvg = svgStr; // Vektorform cachen: der Export rendert daraus in Zielauflösung
-        renderSvgToCanvas(svgStr, srcCanvas.width, srcCanvas.height).then(resolve).catch(reject);
+        // Vektorform mitliefern: reprocess cacht sie, der Export rendert daraus in Zielauflösung
+        renderSvgToCanvas(svgStr, srcCanvas.width, srcCanvas.height).then(function(out){
+          resolve({ canvas: out, svg: svgStr });
+        }).catch(reject);
       } catch(e){
         reject(e);
       }
@@ -975,6 +985,9 @@
         comp[cn++] = i;
         var x = i % w, y = (i / w) | 0;
         if (x === 0 || y === 0 || x === w - 1 || y === h - 1) edge = true;
+        // Grenzt die Fläche an Transparenz, ist sie ein frei stehendes Motivteil (z. B. weißes T-Shirt), kein Loch
+        if ((x > 0 && d[(i - 1) * 4 + 3] < 128) || (x < w - 1 && d[(i + 1) * 4 + 3] < 128) ||
+            (y > 0 && d[(i - w) * 4 + 3] < 128) || (y < h - 1 && d[(i + w) * 4 + 3] < 128)) edge = true;
         if (x > 0){ var a1 = i - 1; if (!seen[a1] && looksBg(a1)){ seen[a1] = 1; st.push(a1); } }
         if (x < w - 1){ var a2 = i + 1; if (!seen[a2] && looksBg(a2)){ seen[a2] = 1; st.push(a2); } }
         if (y > 0){ var a3 = i - w; if (!seen[a3] && looksBg(a3)){ seen[a3] = 1; st.push(a3); } }
