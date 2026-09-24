@@ -307,7 +307,9 @@ sehen, und lässt sich mit Maus oder nur mit der Tastatur bedienen:
   Browser gemerkt),
 - Knopf „Vorlesen“ mit den Sprachausgabe-Stimmen des Betriebssystems. Er
   erscheint nur, wenn eine deutsche Stimme installiert ist; lokale Stimmen
-  werden bevorzugt, damit es ohne Internet funktioniert,
+  werden bevorzugt, damit es ohne Internet funktioniert. Gibt es mehrere,
+  lässt sich daneben die Stimme wählen („Frau: Katja“, „Mann: Stefan“); nach
+  dem Wechsel sagt sie „Hallo. So klinge ich.“ Die Wahl wird im Browser gemerkt,
 - deutlich sichtbarer Tastaturfokus, Meldungen für Screenreader
   (`aria-live`, `role="alert"`),
 - Fachbegriffe und Fachregler nur im zugeklappten Bereich „Für Fachkräfte“.
@@ -386,8 +388,9 @@ bereits installierten Ghostscript-Installation.
   laufen (`localService`). Online-Stimmen des Browsers, die den Text an den
   Hersteller schicken würden, werden nie verwendet. Ohne lokale deutsche
   Stimme bleibt der Knopf ausgeblendet.
-- **Im Browser gespeichert:** nur die Einstellung „Große Schrift“
-  (`localStorage`), keine Bilder, keine Nutzerdaten.
+- **Im Browser gespeichert:** nur die Einstellungen „Große Schrift“,
+  „Dunkel“ und die gewählte Vorlese-Stimme (`localStorage`), keine Bilder,
+  keine Nutzerdaten.
 - **Außerhalb der App:** Gespeicherte Druckdateien landen im Download-Ordner
   des Browsers. Den löscht die App nicht; er sollte in der Werkstatt
   regelmäßig geleert werden.

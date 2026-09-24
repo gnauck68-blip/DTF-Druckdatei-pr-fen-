@@ -34,25 +34,72 @@
   umschalter('dunkel-btn', 'dunkel', 'texstyle-dunkel');
 
   // ---------- Vorlesen: nur Stimmen, die auf dem Gerät laufen (Datenschutz, offline) ----------
+  // Wahl zwischen Frauen- und Männerstimme; die gewählte Stimme wird im Browser gemerkt.
   const sprache = window.speechSynthesis;
-  function deutscheStimme() {
-    if (!sprache) return null;
-    return sprache.getVoices().find((v) => v.localService && v.lang && v.lang.toLowerCase().startsWith('de')) || null;
+  const stimmeWahl = $('stimme');
+  // Das Geschlecht steht nicht in der Sprachausgabe-Schnittstelle, nur im Namen der Stimme.
+  const FRAUEN = /\b(hedda|katja|anna|petra|helena|marlene|vicki|sabina|amala|louisa|elke|gisela|klarissa|maja|tanja|leni|ingrid|seraphina|katharina|anja|yvonne|nina|female|weiblich|frau)\b/i;
+  const MAENNER = /\b(stefan|markus|yannick|hans|conrad|killian|kasper|bernd|christoph|ralf|klaus|florian|jonas|georg|viktor|tobias|male|männlich|mann)\b/i;
+  function geschlecht(v) { return FRAUEN.test(v.name) ? 'Frau' : MAENNER.test(v.name) ? 'Mann' : ''; }
+  // Bessere Stimmen zuerst: „Natural“/„Neural“/„Premium“ klingen flüssig, Hedda ist die älteste Windows-Stimme.
+  function klang(v) {
+    let punkte = 0;
+    if (/natural|neural|premium|enhanced|verbessert/i.test(v.name)) punkte += 50;
+    if (/^de[-_]de/i.test(v.lang)) punkte += 5;
+    if (/hedda/i.test(v.name)) punkte -= 20;
+    return punkte;
   }
-  function vorlesenPruefen() {
-    const da = !!deutscheStimme();
+  function deutscheStimmen() {
+    if (!sprache) return [];
+    return sprache.getVoices()
+      .filter((v) => v.localService && v.lang && v.lang.toLowerCase().startsWith('de'))
+      .sort((a, b) => klang(b) - klang(a));
+  }
+  function gewaehlteStimme() {
+    const alle = deutscheStimmen();
+    return alle.find((v) => v.voiceURI === stimmeWahl.value) || alle[0] || null;
+  }
+  function stimmenZeigen() {
+    const alle = deutscheStimmen();
+    const gemerkt = stimmeWahl.value || leseEinstellung('texstyle-stimme');
+    let nummer = 0;
+    stimmeWahl.replaceChildren(...alle.map((v) => {
+      nummer += 1;
+      const art = geschlecht(v);
+      const name = v.name.replace(/^Microsoft\s+/i, '').replace(/\s*[-–(].*$/, '').trim();
+      const o = document.createElement('option');
+      o.value = v.voiceURI;
+      o.textContent = art ? art + ': ' + name : 'Stimme ' + nummer + ': ' + name;
+      return o;
+    }));
+    if (alle.some((v) => v.voiceURI === gemerkt)) stimmeWahl.value = gemerkt;
+    const da = alle.length > 0;
     document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
+    // Auswahl nur zeigen, wenn es etwas zu wählen gibt
+    $('stimme-feld').classList.toggle('versteckt', alle.length < 2);
   }
-  if (sprache) { vorlesenPruefen(); sprache.addEventListener('voiceschanged', vorlesenPruefen); }
+  // Zeilen ohne Satzzeichen bekommen einen Punkt, sonst liest die Stimme sie ohne Pause
+  // in einem Atemzug zusammen und betont falsch.
+  function vorlesbar(el) {
+    return el.innerText.split('\n').map((z) => z.replace(/\s+/g, ' ').trim()).filter(Boolean)
+      .map((z) => (/[.!?:;,…]$/.test(z) ? z : z + '.')).join(' ');
+  }
+  function sprich(text) {
+    const stimme = gewaehlteStimme();
+    if (!stimme || !text) return;
+    sprache.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
+    sprache.speak(u);
+  }
+  if (sprache) { stimmenZeigen(); sprache.addEventListener('voiceschanged', stimmenZeigen); }
+  stimmeWahl.addEventListener('change', () => {
+    merkeEinstellung('texstyle-stimme', stimmeWahl.value);
+    sprich('Hallo. So klinge ich.');
+  });
   document.querySelectorAll('.vorlesen-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const stimme = deutscheStimme();
-      const text = btn.dataset.lies.split(' ').map((id) => ($(id) ? $(id).innerText : '')).join(' ').replace(/\s+/g, ' ').trim();
-      if (!stimme || !text) return;
-      sprache.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
-      sprache.speak(u);
+      sprich(btn.dataset.lies.split(' ').map((id) => ($(id) ? vorlesbar($(id)) : '')).join(' ').trim());
     });
   });
 

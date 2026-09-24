@@ -57,6 +57,8 @@ DATENSCHUTZ
 - Hochgeladene Bilder und erzeugte Dateien liegen in programm\app\workdir.
   Sie werden nach 24 Stunden gelöscht und bei jedem Start der App komplett.
 - "Vorlesen" nutzt nur Stimmen, die auf diesem Rechner installiert sind.
+  Neben "Vorlesen" lässt sich die Stimme wählen (Frau oder Mann).
+  Mehr Stimmen: Windows-Einstellungen > Zeit und Sprache > Sprache > Deutsch.
 - Gespeicherte Druckdateien landen im Download-Ordner des Browsers. Den
   räumt die App nicht auf: bitte regelmäßig leeren.
 - Fotos, auf denen Personen zu erkennen sind, nur mit deren Einverständnis
