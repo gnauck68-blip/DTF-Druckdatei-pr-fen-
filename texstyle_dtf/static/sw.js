@@ -5,12 +5,14 @@
  * Bei jeder Änderung an den Dateien VERSION erhöhen, dann holt sich das Gerät
  * beim nächsten Start mit Internet die neue Fassung.
  */
-const VERSION = 'texstyle-dtf-6';
+const VERSION = 'texstyle-dtf-7';
 const DATEIEN = ['./', './index.html', './app.js', './rip.js', './studio-engine.js', './lanczos-worker.js', './imagetracer.js',
   './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
+// cache: 'reload' holt jede Datei frisch vom Server; sonst könnte der Browser-Zwischenspeicher
+// (GitHub Pages: 10 Minuten) die alte Fassung in den neuen Speicher legen.
 self.addEventListener('install', (ereignis) => {
-  ereignis.waitUntil(caches.open(VERSION).then((speicher) => speicher.addAll(DATEIEN)).then(() => self.skipWaiting()));
+  ereignis.waitUntil(caches.open(VERSION).then((speicher) => speicher.addAll(DATEIEN.map((d) => new Request(d, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (ereignis) => {
