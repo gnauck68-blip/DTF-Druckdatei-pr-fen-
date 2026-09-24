@@ -40,13 +40,19 @@
   .kopf{max-width:52rem; margin:0 auto; padding:1rem 1rem .25rem; display:flex; flex-wrap:wrap; align-items:center; gap:.75rem 1rem;}
   .kopf h1{margin:0; font-size:1.6rem; flex:1 1 auto;}
   .kopf-knoepfe{display:flex; gap:.5rem; flex-wrap:wrap;}
+  .stimme-feld{display:flex; align-items:center; gap:.4rem; max-width:100%;}
+  .stimme-feld label{font-weight:700;}
+  .stimme-feld select{font:inherit; min-width:0; max-width:100%; min-height:3rem; padding:.4rem .6rem; border:.15rem solid var(--line); border-radius:.5rem; background:var(--feld); color:var(--ink);}
   main{max-width:52rem; margin:0 auto; padding:.5rem 1rem 3rem; display:grid; grid-template-columns:minmax(0,1fr); gap:1.25rem;}
 
   .schritt{
     background:var(--panel); border:.1rem solid var(--line); border-radius:.75rem;
     padding:1.25rem;
   }
-  .schritt.aus{opacity:.55;}
+  /* Schritte, die noch nicht dran sind: gestrichelter Rahmen statt Ausgrauen, damit
+     der Text lesbar bleibt (Kontrast mindestens 4,5:1 auch für schlecht Sehende) */
+  .schritt.aus{border-style:dashed; background:var(--bg);}
+  .schritt.aus .schritt-nr{background:#5b6168;}
   .schritt-kopf{display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem;}
   .schritt-nr{
     flex:0 0 auto; width:2.6rem; height:2.6rem; border-radius:50%;
@@ -238,6 +244,10 @@
     <button type="button" class="leise vorlesen-btn versteckt" data-lies="hilfe">
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
     </button>
+    <div class="stimme-feld versteckt" id="stimme-feld">
+      <label for="stimme">Stimme</label>
+      <select id="stimme"></select>
+    </div>
   </div>
   <p id="hilfe" style="margin:0; flex-basis:100%;">So geht es: 1. Bild aussuchen. 2. Hintergrund entfernen. 3. Größe in Zentimetern wählen. 4. Druck-Datei machen.</p>
 </header>
