@@ -68,7 +68,7 @@ def test_browser_liefert_dieselbe_datei_wie_python_und_laeuft_offline(adresse, t
     logo.save(bild)
 
     lauf = subprocess.run(
-        ["node", str(HIER / "browser" / "android.mjs"), adresse, str(bild), "A6", str(tmp_path)],
+        ["node", str(HIER / "browser" / "android.mjs"), adresse, str(bild), "8", str(tmp_path)],
         capture_output=True, text=True, timeout=240,
     )
     assert lauf.returncode == 0, lauf.stderr
@@ -76,9 +76,12 @@ def test_browser_liefert_dieselbe_datei_wie_python_und_laeuft_offline(adresse, t
     assert ergebnis["fehler"] == []
     assert ergebnis["apiAnfragen"] == 0  # das Bild verlässt das Gerät nicht
     assert [l["datei"] is not None for l in ergebnis["laeufe"]] == [True, True]  # online und offline
+    assert all(l["vorHakenVersteckt"] for l in ergebnis["laeufe"])  # Speichern erst nach den Pflicht-Häkchen
 
     gespeichert = uploads.save_upload(bild.read_bytes(), "image/png")
-    python = rip.erzeuge_rip_datei(Image.open(gespeichert.stored_path), formats.resolve_format("A6"), tmp_path / "python.png")
+    # 8 cm breit; die freie Höhe ist so groß, dass die Breite die Größe bestimmt
+    acht_cm = formats.resolve_format("CUSTOM", 80, 3000)
+    python = rip.erzeuge_rip_datei(Image.open(gespeichert.stored_path), acht_cm, tmp_path / "python.png")
     with Image.open(python.pfad) as p_datei:
         p = np.asarray(p_datei.convert("RGBA")).astype(int)
     for l in ergebnis["laeufe"]:

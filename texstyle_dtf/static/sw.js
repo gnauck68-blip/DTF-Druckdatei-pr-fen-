@@ -5,8 +5,9 @@
  * Bei jeder Änderung an den Dateien VERSION erhöhen, dann holt sich das Gerät
  * beim nächsten Start mit Internet die neue Fassung.
  */
-const VERSION = 'texstyle-dtf-1';
-const DATEIEN = ['./', './index.html', './rip.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const VERSION = 'texstyle-dtf-4';
+const DATEIEN = ['./', './index.html', './app.js', './rip.js', './studio-engine.js', './lanczos-worker.js', './imagetracer.js',
+  './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (ereignis) => {
   ereignis.waitUntil(caches.open(VERSION).then((speicher) => speicher.addAll(DATEIEN)).then(() => self.skipWaiting()));

@@ -149,6 +149,90 @@ byte-gleiches sRGB-Profil (`texstyle_dtf/srgb.icc`), harte Kanten,
 deckungsgleiche Motivfläche. Der Test braucht Node.js mit Playwright und
 wird sonst übersprungen.
 
+## Werkzeuge für Fachkräfte (Funktionen aus dem Texstyle DTF Studio)
+
+Unter den vier Schritten steht der aufklappbare Bereich „Werkzeuge für
+Fachkräfte“. Die vier Schritte bleiben der Standardweg; ohne Eingriff im
+Bereich liefert die App dieselbe RIP-Datei wie vorher. Die Rechenfunktionen
+kommen aus dem Studio (`studio/dist/engine.mjs`, `resample.mjs`,
+`crop-geometry.mjs`). `node scripts/studio-engine-bauen.mjs` baut daraus
+`texstyle_dtf/static/studio-engine.js`; ein Test meldet, wenn die Datei nicht
+mehr zum Studio passt.
+
+- **Rückgängig / Wiederholen** für Zuschnitt, Hintergrund, Größe und alle
+  Einstellungen (nur im Arbeitsspeicher, höchstens 40 Schritte).
+- **Projekt speichern/öffnen** (`.texdtf`): Bild, Einstellungen und
+  Sammelbogen in einer Datei. Projekte aus dem Studio lassen sich öffnen.
+  **Testmotiv** zum Ausprobieren.
+- **Bildausschnitt wählen** mit Rahmen (ziehen, Ecken, Pfeiltasten,
+  Pixelwerte), beidseitiger Beschnitt in Prozent, Original wiederherstellen,
+  **Spiegeln**.
+- **Freistellen**: Verfahren „am Rand zusammenhängend“ (Standard wie
+  bisher), „überall im Bild“ (auch Innenräume, mit weichem Übergang) und
+  „einfarbige Schrift“ (saubere JPG-Kanten, Schriftfarbe, Störungen,
+  Kantenkontrast); Hintergrundfarbe per Farbfeld, Farbsäume bereinigen,
+  Textilfarbe im Motiv aussparen, Kanten einziehen (0–2 Pixel).
+- **Tonwerte und Farbe**: Histogramm, Schwarz- und Weißpunkt (auch per
+  Antippen), Gamma, Farbton, Sättigung, Helligkeit.
+- **Ansicht**: Ergebnis, Original, Vergleich, Weißmaske; Vorschau auf
+  Textilfarbe statt Karomuster.
+- **Druckdatei**: 300 oder 600 dpi, Höhe statt Breite vorgeben, Lanczos-3
+  (im Worker, bis 24 Millionen Pixel), Halbtonraster (LPI, Winkel, Form),
+  PNG oder PDF; danach 100-%-Ansicht, Weißmaske als PNG, einfarbige
+  SVG-Konturen.
+- **Sammelbogen**: mehrere Motive mit Breite und Menge, automatisch in
+  Reihen angeordnet (bei Bedarf gedreht), mit der Hand verschiebbar,
+  Überlappungsprüfung, Ausgabe als PNG mit sRGB-Profil oder als PDF.
+- **Dunkel**-Schalter oben; „In einen Ordner speichern“, wo der Browser
+  das kann (Chrome/Edge am PC).
+
+Was bei der RIP-Datei bleibt: PNG immer mit sRGB-Profil und der gewählten
+Auflösung (pHYs). Das Halbtonraster ersetzt „Kanten glätten“ und nimmt dem
+RIP die Rasterung ab; nur einschalten, wenn der RIP das nicht selbst macht.
+PDF und Weißmaske tragen kein Farbprofil; für den RIP ist das PNG die
+richtige Datei. Nicht übernommen aus dem Studio: das Offline-Einrichten über
+ChatGPT Sites (die App hat ihren eigenen Offline-Modus).
+
+**Pflicht-Häkchen vor dem Speichern** (wie im Studio, gilt für alle): Nach
+„Druck-Datei machen“ erscheinen „Datei speichern“, „In einen Ordner
+speichern“ und „Weißmaske speichern“ erst, wenn beide Punkte abgehakt sind:
+Schrift, Kanten, Innenflächen, Motivdetails und Hinweise geprüft; Druckgröße
+und Ausrichtung stimmen mit dem Auftrag. Jede Änderung am Bild oder an den
+Einstellungen macht die Datei ungültig und nimmt die Häkchen wieder weg.
+
+## Texstyle DTF Studio (Ordner `studio/`)
+
+Eine zweite, eigenständige Web-App. Sie wurde mit ChatGPT erstellt und lief
+unter `texstyle-dtf-studio.gnauck68.chatgpt.site` (ChatGPT Sites, nur mit
+Login). Der Quellcode ist hier unverändert übernommen; nur die Tests suchen
+das Canvas-Paket jetzt im eigenen `node_modules` statt in der
+ChatGPT-Umgebung.
+
+Die App läuft komplett im Browser: Freistellen nach Farbe, Zuschnitt,
+Tonwerte, Halbtonraster auf der Transparenz, Weißmaske, Sammelbogen, Export
+als PNG, PDF oder einfarbiges SVG. Einzelheiten stehen in
+`studio/README.md`.
+
+Achtung beim Zusammenspiel mit dem RIP: Raster und Weißmaske aus dem Studio
+nehmen Arbeit vorweg, die laut „Aufgabenteilung zwischen App und RIP“ der
+RIP machen soll. Für die normale RIP-Datei diese Funktionen ausgeschaltet
+lassen. Das Studio bettet außerdem kein sRGB-Profil ein.
+
+Starten: `studio/dist/index.html` über einen lokalen Webserver öffnen, zum
+Beispiel `python -m http.server` im Ordner `studio/dist`. Der Offline-Modus
+(Service Worker) ist auf ChatGPT Sites zugeschnitten: Er lädt `.html`-Seiten
+ohne Endung, und das Manifest startet unter `/offline.html`. Auf einem
+anderen Server oder in einem Unterordner klappt die Offline-Einrichtung
+deshalb nicht ohne Anpassung; die App selbst funktioniert.
+
+Tests (Node.js 22):
+
+```bash
+cd studio
+npm install
+npm test
+```
+
 ## Windows: Offline-Paket ohne Installation
 
 Für Werkstatt-PCs mit Windows gibt es ein fertiges Paket, das ohne
@@ -172,22 +256,27 @@ die älteren Schnittstellen PDF/X und DTF-Raster).
 
 ## Beispieldurchlauf
 
-1. Die App starten.
-2. **Schritt 1 „Bild aussuchen“:** Bild wählen (JPG, PNG oder WebP, max. 50 MB,
+1. Die App öffnen (Windows-Paket, Web-Adresse oder installiert auf Android).
+2. **Schritt 1 „Bild aussuchen“:** JPG, PNG oder WebP wählen (max. 50 MB,
    höchstens 100 Millionen Pixel) oder mit der Maus auf die Fläche ziehen.
-   Die Vorschau zeigt durchsichtige Stellen als Karomuster; leerer Rand wird
-   abgeschnitten.
-3. **Schritt 2 „Größe wählen“:** Auf eine Größe tippen (A6 bis A3). Die App
-   prüft sofort, ob das Bild dafür scharf genug ist, zeigt „Gut“, „Achtung“
-   oder „Stopp“ und die Druckgröße in cm.
-4. **Schritt 3 „Druck-Datei machen“:** Die App erzeugt die Datei für den RIP
-   und prüft sie. Bei „Gut“ oder „Achtung“ erscheint „Datei speichern“; bei
-   „Stopp“ ist der Download gesperrt. Die Prüfpunkte (Auflösung, Druckgröße,
-   Hintergrund, Kanten, Farben, Datei) stehen unter „Genaue Prüfung (für
-   Fachkräfte)“.
-5. Die gespeicherte PNG-Datei im RIP des Druckers öffnen.
-6. **Für Fachkräfte** (zugeklappter Bereich unten): eigene Größe in mm,
-   „Einpassen“ oder „Fläche füllen“ und „Kanten hart machen“.
+3. **Schritt 2 „Hintergrund entfernen“:** Einen einfarbigen Hintergrund
+   erkennt die App am Bildrand und entfernt ihn gleich; der Regler „Wie viel
+   wird entfernt?“ steuert die Toleranz, „Auch Innenflächen entfernen“ nimmt
+   eingeschlossene Flächen in der Hintergrundfarbe mit (Loch im „o“).
+   Ins Vorschaubild tippen wählt die Farbe, die weg soll. Danach wird der
+   Saum um 1 px abgetragen und der leere Rand abgeschnitten.
+4. **Schritt 3 „Größe wählen“:** Breite in cm eintippen, mit − und + ändern
+   oder Schnellwahl (8, 10, 25, 30 cm). Die Höhe folgt aus dem Motiv. Die
+   Ampel zeigt die Auflösung des Originals in dieser Breite; zu kleine Bilder
+   werden nicht gesperrt, sondern hochgerechnet.
+5. **Schritt 4 „Druck-Datei machen“:** Die App rechnet auf 300 dpi,
+   glättet die Kanten (Alpha weichzeichnen, dann hart schneiden, beim
+   Hochrechnen stärker), schärft beim Vergrößern leicht nach und auf Wunsch
+   „Logo glätten“: die Farben kommen dann aus einer Vektorform
+   (ImageTracer, lokal in `static/imagetracer.js`), der Umriss aus der
+   geglätteten Rasterfassung. Ergebnis mit Vorschau und Prüfung. Nach dem
+   Abhaken der beiden Prüfpunkte erscheint „Datei speichern“; die Datei in
+   den RIP des Druckers laden.
 
 ### Bild ins Format setzen
 
@@ -260,6 +349,9 @@ Die Testsuite deckt alle Kernfunktionen ab: Formate und Auflösungsprüfung,
 CMYK-Konvertierung und Farbauftragsbegrenzung, PDF/X-Aufbau und -Geometrie,
 Preflight-Ampel (inklusive Download-Sperre bei einem 72-dpi-Testbild) und das
 DTF-Modul (Halbtonraster, Weißplatte, Filmrand, Deckungsgleichheit).
+`tests/test_browser.py` und `tests/test_werkzeuge.py` spielen die App in
+Chromium durch (einfacher Weg auf einem nachgebildeten Pixel 7, offline;
+alle Werkzeuge für Fachkräfte mit Prüfung der gespeicherten Dateien).
 
 Für die CMYK-Tests wird automatisch das oben erwähnte Ghostscript-Beispielprofil
 verwendet, falls `TEXSTYLE_ICC_CMYK` nicht gesetzt ist (siehe
