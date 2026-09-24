@@ -46,7 +46,10 @@
     background:var(--panel); border:.1rem solid var(--line); border-radius:.75rem;
     padding:1.25rem;
   }
-  .schritt.aus{opacity:.55;}
+  /* Schritte, die noch nicht dran sind: gestrichelter Rahmen statt Ausgrauen, damit
+     der Text lesbar bleibt (Kontrast mindestens 4,5:1 auch für schlecht Sehende) */
+  .schritt.aus{border-style:dashed; background:var(--bg);}
+  .schritt.aus .schritt-nr{background:#5b6168;}
   .schritt-kopf{display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem;}
   .schritt-nr{
     flex:0 0 auto; width:2.6rem; height:2.6rem; border-radius:50%;

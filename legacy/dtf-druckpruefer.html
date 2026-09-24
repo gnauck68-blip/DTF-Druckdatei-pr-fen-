@@ -218,15 +218,15 @@
   </div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/imagetracerjs/1.2.6/imagetracer_v1.2.6.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="lib/pdf.min.js"></script>
+<script src="lib/imagetracer.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
 <script>
 (function(){
   "use strict";
   if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      "lib/pdf.worker.min.js";
   }
 
   var drop = document.getElementById("drop");
@@ -267,6 +267,14 @@
   // KI-Freistellung für Foto-Hintergründe (läuft lokal per WebAssembly)
   document.getElementById("aiBgBtn").addEventListener("click", function(){
     if (!state) return;
+    // Datenschutz: Das KI-Modell kommt aus dem Internet (jsdelivr.net, img.ly).
+    // Dabei sieht der Anbieter die IP-Adresse des Geräts. Das Bild selbst bleibt auf dem Gerät.
+    if (!window.confirm(
+      "KI-Freistellung braucht Internet.\n\n" +
+      "Dafür lädt die App Programm und KI-Modell von jsdelivr.net und img.ly. " +
+      "Diese Anbieter sehen die IP-Adresse dieses Geräts.\n" +
+      "Dein Bild bleibt auf dem Gerät und wird nicht hochgeladen.\n\n" +
+      "Jetzt laden?")) return;
     clearError();
     var btn = document.getElementById("aiBgBtn");
     var prev = btn.textContent;

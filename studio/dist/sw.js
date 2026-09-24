@@ -1,11 +1,11 @@
 /* Texstyle Offline: cache only the explicit application shell, never user files. */
 'use strict';
-const VERSION = 'offline-8';
+const VERSION = 'offline-9';
 const PREFIX = 'texstyle-app-';
 const CACHE = PREFIX + VERSION;
 const BASE = new URL('./', self.location.href);
 const ASSETS = [
-  'offline.html', 'style.css?v=8', 'workflow.css?v=5', 'studio.js?v=10', 'worker-bundle.js?v=6',
+  'offline.html', 'style.css?v=9', 'workflow.css?v=5', 'studio.js?v=10', 'worker-bundle.js?v=6',
   'install.js?v=2', 'offline.js?v=1', 'manifest.webmanifest', 'icon.svg',
   'app-icon-192.png', 'app-icon-512.png', 'app-icon-maskable.png',
   'offline-guide.html'
