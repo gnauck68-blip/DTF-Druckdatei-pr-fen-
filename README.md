@@ -1,0 +1,213 @@
+# TexStyle DTF
+
+TexStyle DTF ist eine lokal laufende Web-App für die Werkstatt: aus einem
+hochgeladenen Bild (JPG, PNG, WebP) entsteht eine druckfertige
+PDF/X-1a:2001-Datei, dazu ein DTF-Modul für den Textildruck (Halbtonraster
+und weiße Unterdruckschicht). Die App läuft komplett auf dem eigenen Rechner,
+ohne Internetverbindung im Betrieb, ohne Login, ohne Datenbank.
+
+## Voraussetzungen
+
+- Python 3.11
+- Ghostscript (Kommandozeilenprogramm `gs`), für die PDF/X-Ausgabe
+- Ein CMYK-ICC-Profil, das zur eigenen Druckerei/zum eigenen Drucker passt
+  (siehe Abschnitt „ICC-Profil einrichten" unten)
+
+### Ghostscript installieren
+
+Unter Debian/Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ghostscript
+```
+
+Prüfen, ob es funktioniert hat:
+
+```bash
+gs --version
+```
+
+Unter Windows/macOS: Ghostscript von der offiziellen Projektseite installieren
+und sicherstellen, dass der Befehl `gs` (Windows: `gswin64c`, ggf. im PATH
+verlinken) in der Kommandozeile verfügbar ist.
+
+### Python-Pakete installieren
+
+```bash
+pip install -r requirements.txt
+```
+
+Das installiert FastAPI, Uvicorn, Pillow, NumPy, pikepdf und pytest.
+
+## ICC-Profil einrichten
+
+TexStyle DTF konvertiert Bilder über ein echtes ICC-Profil nach CMYK. Es gibt
+**keinen** eingebauten Ersatz und **keinen** stillen Fallback: Ohne
+eingerichtetes Profil bricht die App mit einer klaren Fehlermeldung ab, statt
+mit falschen Farben zu drucken.
+
+1. Das CMYK-Zielprofil besorgen, das zur eigenen Druckerei bzw. zum eigenen
+   Drucker/Papier passt (z. B. vom Drucker-Hersteller, vom Druckdienstleister
+   oder ein branchenübliches Profil wie „PSO Coated v3" oder „FOGRA39" –
+   die Beschaffung ist bewusst nicht Teil dieser App, siehe „Nicht bauen"
+   in der Aufgabenstellung: kein automatischer Download von ICC-Profilen).
+2. Die Umgebungsvariable `TEXSTYLE_ICC_CMYK` auf den vollständigen Pfad der
+   `.icc`-Datei setzen:
+
+   ```bash
+   export TEXSTYLE_ICC_CMYK=/pfad/zu/meinem-profil.icc
+   ```
+
+   Unter Windows (PowerShell):
+
+   ```powershell
+   $env:TEXSTYLE_ICC_CMYK = "C:\Profile\mein-profil.icc"
+   ```
+
+3. Die Variable muss in der Shell gesetzt sein, aus der die App gestartet
+   wird (dauerhaft z. B. in `~/.bashrc` eintragen).
+
+**Nur zum Ausprobieren ohne eigenes Profil:** Ghostscript bringt ein
+Beispiel-CMYK-Profil mit, das unter Linux meist unter
+`/usr/share/color/icc/ghostscript/default_cmyk.icc` liegt. Das ist ein
+allgemeines SWOP-Profil (Artifex Software), **kein** auf einen echten Drucker
+kalibriertes Profil, und sollte nicht für echte Druckaufträge verwendet
+werden – nur um zu sehen, dass die App grundsätzlich läuft.
+
+## App starten
+
+Standardmäßig ist die App nur auf diesem Rechner erreichbar
+(`127.0.0.1`, nicht von anderen Geräten im Netzwerk aus aufrufbar):
+
+```bash
+uvicorn texstyle_dtf.main:app
+```
+
+Danach im Browser öffnen: <http://127.0.0.1:8000>
+
+**Netzwerkfreigabe** (z. B. wenn mehrere Arbeitsplätze in der Werkstatt
+zugreifen sollen) nur bewusst über den `--lan`-Schalter, mit Warnhinweis in
+der Konsole:
+
+```bash
+python -m texstyle_dtf.main --lan
+```
+
+Ein anderer Port lässt sich mit `--port` wählen (nur im `--lan`-Startmodus):
+
+```bash
+python -m texstyle_dtf.main --port 8080
+```
+
+## Beispieldurchlauf
+
+1. `TEXSTYLE_ICC_CMYK` setzen (siehe oben) und die App starten.
+2. Im Browser ein Bild hochladen (JPG, PNG oder WebP, max. 50 MB).
+3. Ein Format wählen, z. B. A3, und auf „Auflösung prüfen" klicken – die
+   Ampel zeigt, ob die Bildauflösung für dieses Format ausreicht.
+4. Auf „Druck-PDF erzeugen" klicken. Die App zeigt danach die
+   Preflight-Ampel für alle Prüfpunkte (Auflösung, Farbraum, ICC-Profil,
+   Farbauftrag, TrimBox, BleedBox, PDF-Version, OutputIntent, Dateigröße).
+   Ist alles grün oder gelb, erscheint ein Download-Link; bei Rot ist der
+   Download gesperrt und der betroffene Punkt wird benannt.
+5. Für den Textildruck: im Abschnitt „DTF-Modul" Rasterweite, Rasterwinkel
+   und Knockout-Schwelle einstellen und auf „DTF-Dateien erzeugen" klicken.
+   Es entstehen zwei deckungsgleiche PNG-Dateien (Farbfilm und Weißplatte,
+   300 dpi) sowie ein Vorschau-PDF.
+
+### Beispieldurchlauf über die Kommandozeile prüfen
+
+Das mitgelieferte Prüfskript kann jede erzeugte PDF-Datei unabhängig
+kontrollieren:
+
+```bash
+python scripts/verify_pdfx.py pfad/zur/heruntergeladenen-datei.pdf
+```
+
+Erwartete Ausgabe bei einer gültigen Datei (Beispiel für ein A3-Testbild):
+
+```
+--- Prüfergebnisse ---
+  Dateigröße: 0.2 MB.
+  Auflösung: Auflösung ausreichend: 308 dpi im Endformat.
+  Farbraum: Nur CMYK/Graustufen im PDF, wie gefordert.
+  ICC-Profil vorhanden: CMYK-ICC-Profil ist eingebettet.
+  Farbauftrag: Farbauftrag 201% ist unbedenklich.
+  TrimBox: Endformat: 297 x 420 mm.
+  BleedBox: Anschnitt 3 mm rundum korrekt gesetzt.
+  PDF-Version: PDF-Version 1.3 ist korrekt.
+  OutputIntent: OutputIntent ist eingebettet.
+  Seitenzahl: 1
+  Keine Textobjekte/Schriften im PDF (Version 1 verwendet keinen Text).
+PASS
+```
+
+## Tests
+
+```bash
+pytest
+```
+
+Die Testsuite deckt alle Kernfunktionen ab: Formate und Auflösungsprüfung,
+CMYK-Konvertierung und Farbauftragsbegrenzung, PDF/X-Aufbau und -Geometrie,
+Preflight-Ampel (inklusive Download-Sperre bei einem 72-dpi-Testbild) und das
+DTF-Modul (Halbtonraster, Weißplatte, Filmrand, Deckungsgleichheit).
+
+Für die CMYK-Tests wird automatisch das oben erwähnte Ghostscript-Beispielprofil
+verwendet, falls `TEXSTYLE_ICC_CMYK` nicht gesetzt ist (siehe
+`tests/conftest.py`) – das ist kein Download aus dem Netz, sondern Teil der
+bereits installierten Ghostscript-Installation.
+
+## Datenschutz: welche Daten liegen wo, wie lange, wie löschen
+
+- **Wo:** Hochgeladene Bilder und alle erzeugten Dateien (Druck-PDFs,
+  DTF-PNGs, DTF-Vorschau-PDFs) liegen ausschließlich im Ordner `workdir/`
+  im Projektverzeichnis (`workdir/uploads/` und `workdir/outputs/`). Es
+  gibt keine Datenbank und keine Cloud-Anbindung.
+- **Wie lange:** Jede Datei wird automatisch nach 24 Stunden gelöscht. Der
+  Löschlauf startet beim Programmstart und wiederholt sich anschließend
+  stündlich, solange die App läuft.
+- **Von Hand löschen:** Die App stoppen und den Inhalt von
+  `workdir/uploads/` und `workdir/outputs/` leeren (die Dateien
+  `.gitkeep` können bleiben, sie sind leer und nur für Git nötig).
+- **Zugriffslog:** Es wird kein Zugriffslog mit IP-Adressen geführt. Es
+  werden ausschließlich Fehler protokolliert, ohne Dateinamen und ohne
+  weitere Nutzerdaten.
+- **Netzwerk:** Die App braucht zur Laufzeit keine Internetverbindung. Es
+  gibt keine Telemetrie und keine CDN-Einbindung – alle Schriften und
+  Skripte sind lokal in der ausgelieferten Seite enthalten.
+- **Erreichbarkeit:** Standardmäßig nur von diesem Rechner aus erreichbar
+  (`127.0.0.1`). Eine Freigabe im lokalen Netzwerk erfolgt nur bewusst über
+  den Schalter `--lan` (siehe oben), mit Warnhinweis beim Start.
+
+## Bekannte Einschränkungen und bewusste Vereinfachungen
+
+- **PDF/X-1a:2001-Details ohne eindeutige Normvorgabe:** Die genaue
+  Geometrie von Schnitt- und Passermarken sowie der Wortlaut von
+  `OutputCondition`/`OutputConditionIdentifier` bei einem selbst
+  eingerichteten (nicht bei ICC.org registrierten) Profil sind keine
+  ISO-15930-1-Vorgaben, sondern Druckerei-Konvention. Die getroffenen,
+  nachvollziehbaren Festlegungen stehen im Code-Kommentar in
+  `texstyle_dtf/pdfx.py`.
+- **Passermarken** sind hier vereinfacht als reines CMYK-Schwarz umgesetzt,
+  nicht als "All"-Separationsfarbe (die auf jeder Druckplatte erscheinen
+  würde).
+- **Farbauftragsbegrenzung** erfolgt durch gleichmäßige, proportionale
+  Reduktion aller vier CMYK-Kanäle je Pixel (siehe
+  `texstyle_dtf/color.py`), nicht durch eine differenzierte
+  Unterfarbentfernung (GCR/UCR).
+- **DTF-Halbtonraster** verwendet einen einzigen Rasterwinkel für alle vier
+  CMYK-Kanäle (nicht vier unterschiedliche Winkel wie in der klassischen
+  Offset-Trennung).
+- **DTF-PNG-Export:** PNG unterstützt keinen CMYK-Farbraum. Die im
+  CMYK-Raum berechneten Halbtonpunkte werden daher mit einer einfachen,
+  nicht farbmetrischen Formel nach RGB zurückgerechnet, nur damit der
+  Farbfilm als PNG gespeichert werden kann.
+- **DTF-PDF** ist ein einfaches zweiseitiges Vorschau-/Dokumentationsdokument
+  (Farbfilm, Weißplatte), keine PDF/X-Datei – das ist für dieses Modul
+  nirgends gefordert.
+
+Nicht Teil dieser App (bewusst nicht gebaut): KI-Upscaler, Vektorisierung,
+Hintergrundentfernung, Sticker-Schnittlinien, mehrseitige Druckdokumente,
+Login, Cloud-Anbindung, Datenbank.
