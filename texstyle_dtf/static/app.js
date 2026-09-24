@@ -341,6 +341,8 @@
     if (zustand.dateiUrl) { URL.revokeObjectURL(zustand.dateiUrl); zustand.dateiUrl = null; }
     zustand.letzte = null;
     leere($('status-4'));
+    $('pflicht').classList.add('versteckt');
+    $('pflicht-bild').checked = false; $('pflicht-groesse').checked = false;
     $('speichern-bereich').classList.add('versteckt');
     $('pruef-details').classList.add('versteckt');
     $('ergebnis-bild').classList.add('versteckt');
@@ -414,18 +416,37 @@
     zustand.dateiUrl = URL.createObjectURL(daten.blob);
     $('speichern-link').href = zustand.dateiUrl;
     $('speichern-link').download = dateiname;
-    $('speichern-bereich').classList.remove('versteckt');
     $('ordner-btn').classList.toggle('versteckt', typeof window.showSaveFilePicker !== 'function');
-    ['detail-btn', 'maske-btn'].forEach((id) => { $(id).disabled = false; });
+    $('detail-btn').disabled = false;
+    // Pflicht-Häkchen: erst nach der Sichtprüfung lässt sich speichern
+    $('pflicht').classList.remove('versteckt');
+    pflichtPruefen();
     const hinweise = p.punkte.filter((x) => x.ampel === 'gelb' && EINFACH[x.schluessel]).map((x) => EINFACH[x.schluessel]).join(' ');
-    zeigeStatus($('status-4'), p.gesamt_ampel === 'gruen' ? 'gruen' : 'gelb',
-      'Die Datei für den Drucker ist fertig: ' + groesse + ', ' + zustand.fach.dpi + ' dpi' + (format === 'pdf' ? ', PDF' : '') + '. ' +
-      (hinweise ? hinweise + ' ' : '') + 'Drück auf „Datei speichern“.');
-    $('speichern-link').focus();
+    zustand.fertigSatz = 'Die Datei für den Drucker ist fertig: ' + groesse + ', ' + zustand.fach.dpi + ' dpi' + (format === 'pdf' ? ', PDF' : '') + '. ' +
+      (hinweise ? hinweise + ' ' : '');
+    zustand.fertigAmpel = p.gesamt_ampel === 'gruen' ? 'gruen' : 'gelb';
+    zeigeStatus($('status-4'), zustand.fertigAmpel, zustand.fertigSatz + 'Prüf das Bild und hake beide Punkte darunter ab. Dann kannst du speichern.');
+    $('pflicht-bild').focus();
   });
+  function freigegeben() { return !!zustand.letzte && $('pflicht-bild').checked && $('pflicht-groesse').checked; }
+  function pflichtPruefen() {
+    const ok = freigegeben();
+    $('speichern-bereich').classList.toggle('versteckt', !ok);
+    $('maske-btn').disabled = !ok;
+    return ok;
+  }
+  ['pflicht-bild', 'pflicht-groesse'].forEach((id) => $(id).addEventListener('change', () => {
+    if (!zustand.letzte) return;
+    const ok = pflichtPruefen();
+    zeigeStatus($('status-4'), zustand.fertigAmpel, zustand.fertigSatz + (ok
+      ? 'Geprüft. Drück auf „Datei speichern“.'
+      : 'Prüf das Bild und hake beide Punkte darunter ab. Dann kannst du speichern.'));
+  }));
+  // Auch ein programmatischer Klick speichert nie ohne Häkchen
+  $('speichern-link').addEventListener('click', (e) => { if (!freigegeben()) e.preventDefault(); });
   $('ordner-btn').addEventListener('click', async () => {
     const l = zustand.letzte;
-    if (!l) return;
+    if (!l || !freigegeben()) return;
     const satz = await speichere(l.blob, l.dateiname);
     if (satz) zeigeStatus($('status-4'), 'gruen', satz);
   });
@@ -691,7 +712,7 @@
   $('detail-dialog').addEventListener('close', () => { $('detail-leinwand').width = 1; $('detail-leinwand').height = 1; });
   $('maske-btn').addEventListener('click', () => werkzeug(async () => {
     const l = zustand.letzte;
-    if (!l) return;
+    if (!l || !freigegeben()) { werkzeugMeldung('gelb', 'Erst in Schritt 4 beide Punkte abhaken.'); return; }
     werkzeugMeldung('warten', 'Die Weißmaske wird gemacht.');
     await kurzWarten();
     const blob = await R.weissmaskeDatei(l.leinwand, zustand.fach.basisEinziehen, zustand.fach.dpi);

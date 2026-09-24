@@ -48,6 +48,10 @@ async function machen(name) {
   await seite.click('#machen-btn');
   await seite.waitForSelector('#status-4 .status:not(.warten)', { timeout: 60000 });
   ergebnis.texte[name] = await seite.innerText('#pruef-liste');
+  if (await seite.isVisible('#speichern-link') || !(await seite.isDisabled('#maske-btn'))) ergebnis.fehler.push('Speichern ohne Pflicht-Häkchen möglich: ' + name);
+  await seite.check('#pflicht-bild');
+  if (await seite.isVisible('#speichern-link')) ergebnis.fehler.push('Ein Häkchen reicht zum Speichern: ' + name);
+  await seite.check('#pflicht-groesse');
   return speichernVon(() => seite.click('#speichern-link'), name);
 }
 

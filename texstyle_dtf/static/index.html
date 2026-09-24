@@ -174,6 +174,8 @@
   .hoehe{font-size:1.1rem; margin:.25rem 0;}
   .ergebnis-bild{margin-top:1rem;}
   .ergebnis-bild img{max-width:100%; max-height:24rem;}
+  .pflicht{border:.15rem solid var(--accent); border-radius:.6rem; padding:.75rem 1rem; margin:1rem 0 0;}
+  .pflicht legend{padding:0 .4rem;}
   /* Werkzeuge für Fachkräfte */
   .karo.textil{background-image:none;}
   .werkzeuge .reihe{display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0;}
@@ -348,6 +350,14 @@
     <div class="ergebnis-bild versteckt" id="ergebnis-bild">
       <div class="karo"><img id="ergebnis-img" alt="Die fertige Druck-Datei"></div>
     </div>
+    <fieldset class="auswahl pflicht versteckt" id="pflicht">
+      <legend><b>Vor dem Speichern prüfen</b></legend>
+      <p id="pflicht-text" class="tipp">Schau dir das Bild oben an. Hake beide Punkte ab, dann kannst du die Datei speichern.</p>
+      <label><input type="checkbox" id="pflicht-bild" aria-describedby="pflicht-text">
+        <span>Ich habe Schrift, Kanten, Innenflächen, Motivdetails und die Hinweise geprüft.</span></label>
+      <label><input type="checkbox" id="pflicht-groesse" aria-describedby="pflicht-text">
+        <span>Druckgröße und Ausrichtung stimmen mit dem Auftrag überein.</span></label>
+    </fieldset>
     <div class="links versteckt" id="speichern-bereich">
       <a class="knopf gross-knopf" id="speichern-link" href="#" download="texstyle-dtf.png">
         <svg aria-hidden="true"><use href="#i-speichern"/></svg>Datei speichern
@@ -358,7 +368,7 @@
       <summary>Genaue Prüfung (für Fachkräfte)</summary>
       <ul id="pruef-liste"></ul>
     </details>
-    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-4 status-4" style="margin-top:.75rem">
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-4 status-4 pflicht" style="margin-top:.75rem">
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
     </button>
   </section>

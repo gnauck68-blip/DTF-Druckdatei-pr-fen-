@@ -76,6 +76,7 @@ def test_browser_liefert_dieselbe_datei_wie_python_und_laeuft_offline(adresse, t
     assert ergebnis["fehler"] == []
     assert ergebnis["apiAnfragen"] == 0  # das Bild verlässt das Gerät nicht
     assert [l["datei"] is not None for l in ergebnis["laeufe"]] == [True, True]  # online und offline
+    assert all(l["vorHakenVersteckt"] for l in ergebnis["laeufe"])  # Speichern erst nach den Pflicht-Häkchen
 
     gespeichert = uploads.save_upload(bild.read_bytes(), "image/png")
     # 8 cm breit; die freie Höhe ist so groß, dass die Breite die Größe bestimmt

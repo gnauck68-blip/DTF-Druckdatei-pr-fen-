@@ -28,7 +28,10 @@ async function durchlauf(name) {
   await seite.waitForSelector('#status-3 .status:not(.warten)');
   await seite.tap('#machen-btn');
   await seite.waitForSelector('#status-4 .status:not(.warten)', { timeout: 60000 });
-  const lauf = { name, status: await seite.innerText('#status-4'), datei: null };
+  const lauf = { name, status: await seite.innerText('#status-4'), datei: null,
+    vorHakenVersteckt: !(await seite.isVisible('#speichern-link')) };
+  await seite.tap('#pflicht-bild');
+  await seite.tap('#pflicht-groesse');
   if (await seite.isVisible('#speichern-link')) {
     const [dl] = await Promise.all([seite.waitForEvent('download'), seite.tap('#speichern-link')]);
     lauf.datei = `${ausgabe}/${name}.png`;

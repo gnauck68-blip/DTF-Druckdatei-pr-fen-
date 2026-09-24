@@ -191,8 +191,14 @@ Auflösung (pHYs). Das Halbtonraster ersetzt „Kanten glätten“ und nimmt dem
 RIP die Rasterung ab; nur einschalten, wenn der RIP das nicht selbst macht.
 PDF und Weißmaske tragen kein Farbprofil; für den RIP ist das PNG die
 richtige Datei. Nicht übernommen aus dem Studio: das Offline-Einrichten über
-ChatGPT Sites (die App hat ihren eigenen Offline-Modus) und die Pflicht-
-Häkchen vor dem Download.
+ChatGPT Sites (die App hat ihren eigenen Offline-Modus).
+
+**Pflicht-Häkchen vor dem Speichern** (wie im Studio, gilt für alle): Nach
+„Druck-Datei machen“ erscheinen „Datei speichern“, „In einen Ordner
+speichern“ und „Weißmaske speichern“ erst, wenn beide Punkte abgehakt sind:
+Schrift, Kanten, Innenflächen, Motivdetails und Hinweise geprüft; Druckgröße
+und Ausrichtung stimmen mit dem Auftrag. Jede Änderung am Bild oder an den
+Einstellungen macht die Datei ungültig und nimmt die Häkchen wieder weg.
 
 ## Texstyle DTF Studio (Ordner `studio/`)
 
@@ -268,8 +274,9 @@ die älteren Schnittstellen PDF/X und DTF-Raster).
    Hochrechnen stärker), schärft beim Vergrößern leicht nach und auf Wunsch
    „Logo glätten“: die Farben kommen dann aus einer Vektorform
    (ImageTracer, lokal in `static/imagetracer.js`), der Umriss aus der
-   geglätteten Rasterfassung. Ergebnis mit Vorschau, Prüfung und
-   „Datei speichern“; die Datei in den RIP des Druckers laden.
+   geglätteten Rasterfassung. Ergebnis mit Vorschau und Prüfung. Nach dem
+   Abhaken der beiden Prüfpunkte erscheint „Datei speichern“; die Datei in
+   den RIP des Druckers laden.
 
 ### Bild ins Format setzen
 
