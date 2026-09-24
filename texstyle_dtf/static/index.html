@@ -317,9 +317,11 @@
   // ---------- Vorlesen mit den Stimmen des Betriebssystems (offline) ----------
   const sprache = window.speechSynthesis;
   function deutscheStimme() {
-    const stimmen = sprache ? sprache.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith('de')) : [];
-    // Lokale Stimmen zuerst: Sie funktionieren ohne Internet
-    return stimmen.find((v) => v.localService) || stimmen[0] || null;
+    // Nur Stimmen, die auf diesem Rechner laufen (localService). Online-Stimmen
+    // (z. B. „Natural“-Stimmen in Edge, „Google Deutsch“ in Chrome) schicken den
+    // Text an den Hersteller; das wäre eine Übermittlung an Dritte (DSGVO).
+    if (!sprache) return null;
+    return sprache.getVoices().find((v) => v.localService && v.lang && v.lang.toLowerCase().startsWith('de')) || null;
   }
   function vorlesenPruefen() {
     const da = !!deutscheStimme();

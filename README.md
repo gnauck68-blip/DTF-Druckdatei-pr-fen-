@@ -221,9 +221,15 @@ bereits installierten Ghostscript-Installation.
   DTF-PNGs, DTF-Vorschau-PDFs) liegen ausschließlich im Ordner `workdir/`
   im Projektverzeichnis (`workdir/uploads/` und `workdir/outputs/`). Es
   gibt keine Datenbank und keine Cloud-Anbindung.
-- **Wie lange:** Jede Datei wird automatisch nach 24 Stunden gelöscht. Der
-  Löschlauf startet beim Programmstart und wiederholt sich anschließend
-  stündlich, solange die App läuft.
+- **Was:** Vom hochgeladenen Bild werden nur die Bildpunkte als PNG
+  gespeichert, nie die Originaldatei. Metadaten wie GPS-Ort, Kameramodell
+  oder Name des Fotografen (EXIF, XMP, IPTC) werden verworfen; vorher wird
+  die EXIF-Drehung angewendet, damit Handyfotos aufrecht stehen. Auch die
+  erzeugten PDFs und PNGs enthalten keine dieser Metadaten.
+- **Wie lange:** Jede Datei wird automatisch nach 24 Stunden gelöscht
+  (stündlicher Löschlauf, solange die App läuft). Beim Programmstart wird der
+  Arbeitsordner komplett geleert, damit Bilder nicht über ein Wochenende
+  liegen bleiben, nur weil der Rechner aus war.
 - **Von Hand löschen:** Die App stoppen und den Inhalt von
   `workdir/uploads/` und `workdir/outputs/` leeren (die Dateien
   `.gitkeep` können bleiben, sie sind leer und nur für Git nötig).
@@ -233,6 +239,15 @@ bereits installierten Ghostscript-Installation.
 - **Netzwerk:** Die App braucht zur Laufzeit keine Internetverbindung. Es
   gibt keine Telemetrie und keine CDN-Einbindung – alle Schriften und
   Skripte sind lokal in der ausgelieferten Seite enthalten.
+- **Vorlesen:** nutzt nur Sprachausgabe-Stimmen, die auf dem Rechner selbst
+  laufen (`localService`). Online-Stimmen des Browsers, die den Text an den
+  Hersteller schicken würden, werden nie verwendet. Ohne lokale deutsche
+  Stimme bleibt der Knopf ausgeblendet.
+- **Im Browser gespeichert:** nur die Einstellung „Große Schrift“
+  (`localStorage`), keine Bilder, keine Nutzerdaten.
+- **Außerhalb der App:** Gespeicherte Druckdateien landen im Download-Ordner
+  des Browsers. Den löscht die App nicht; er sollte in der Werkstatt
+  regelmäßig geleert werden.
 - **Erreichbarkeit:** Standardmäßig nur von diesem Rechner aus erreichbar
   (`127.0.0.1`). Eine Freigabe im lokalen Netzwerk erfolgt nur bewusst über
   den Schalter `--lan` (siehe oben), mit Warnhinweis beim Start.

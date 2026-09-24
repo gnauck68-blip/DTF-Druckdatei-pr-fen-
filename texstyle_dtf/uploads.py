@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .config import ALLOWED_UPLOAD_CONTENT_TYPES, MAX_BILD_PIXEL, MAX_UPLOAD_BYTES, UPLOAD_DIR
 
@@ -32,10 +32,6 @@ class StoredUpload:
     width_px: int
     height_px: int
     content_type: str
-
-
-def _extension_for(content_type: str) -> str:
-    return ALLOWED_UPLOAD_CONTENT_TYPES[content_type][0]
 
 
 def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
@@ -74,21 +70,32 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
         raise UploadError("Dieses Bildformat wird nicht unterstützt. Erlaubt sind JPG, PNG und WebP.")
 
     upload_id = uuid.uuid4().hex
-    ext = _extension_for(content_type)
-    stored_path = UPLOAD_DIR / f"{upload_id}{ext}"
-    stored_path.write_bytes(raw_bytes)
-
+    # Gespeichert werden nur die Bildpunkte als PNG, nie die Originaldatei:
+    # Metadaten wie GPS-Ort, Kamera oder Name des Fotografen (EXIF, XMP, IPTC)
+    # werden für den Druck nicht gebraucht und landen so gar nicht erst auf der
+    # Platte (DSGVO Art. 5 Abs. 1 lit. c, Datenminimierung). PNG ist verlustfrei,
+    # die Bildqualität bleibt genau so, wie die App das Bild ohnehin liest.
+    stored_path = UPLOAD_DIR / f"{upload_id}.png"
     preview_path = UPLOAD_DIR / f"{upload_id}_preview.png"
     try:
-        with Image.open(stored_path) as img:
+        with Image.open(io.BytesIO(raw_bytes)) as original:
+            # Handyfotos stehen oft nur per EXIF-Angabe aufrecht; vor dem
+            # Verwerfen der Metadaten die Drehung auf die Pixel anwenden.
+            bild = ImageOps.exif_transpose(original)
+            bild = bild.convert("RGBA" if _hat_transparenz(bild) else "RGB")
+            bild.info = {}
+            bild.save(stored_path, format="PNG")
+            width_px, height_px = bild.size
+
             # Transparenz behalten, sonst erscheint sie in der Vorschau schwarz
-            img = img.convert("RGBA")
-            img.thumbnail(PREVIEW_MAX_SIZE)
-            img.save(preview_path, format="PNG")
+            vorschau = bild.convert("RGBA")
+            vorschau.thumbnail(PREVIEW_MAX_SIZE)
+            vorschau.save(preview_path, format="PNG")
     except OSError:
         stored_path.unlink(missing_ok=True)
-        logger.error("Vorschau konnte nicht erzeugt werden.")
-        raise UploadError("Aus dem Bild konnte keine Vorschau erzeugt werden.")
+        preview_path.unlink(missing_ok=True)
+        logger.error("Hochgeladenes Bild konnte nicht gespeichert werden.")
+        raise UploadError("Das Bild konnte nicht verarbeitet werden. Bitte ein anderes Bild versuchen.")
 
     return StoredUpload(
         upload_id=upload_id,
@@ -98,6 +105,10 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
         height_px=height_px,
         content_type=content_type,
     )
+
+
+def _hat_transparenz(bild: Image.Image) -> bool:
+    return bild.mode in ("RGBA", "LA", "PA", "La", "RGBa") or (bild.mode == "P" and "transparency" in bild.info)
 
 
 def _zu_viele_pixel() -> UploadError:

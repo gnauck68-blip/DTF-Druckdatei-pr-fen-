@@ -56,8 +56,8 @@ _cleanup_task: asyncio.Task | None = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Löschlauf beim Start (Datenschutz-Vorgabe).
-    run_cleanup_once()
+    # Beim Start alles löschen, was von früheren Läufen übrig ist (Datenschutz-Vorgabe).
+    run_cleanup_once(alle=True)
     global _cleanup_task
     _cleanup_task = asyncio.create_task(cleanup_loop())
     try:

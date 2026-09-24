@@ -50,11 +50,19 @@ Windows warnt vor der .bat-Datei ("Der Computer wurde durch Windows geschützt")
     Rechtsklick auf die ZIP-Datei > Eigenschaften > "Zulassen" anhaken.
 
 
-DATEN
------
+DATENSCHUTZ
+-----------
 
-Hochgeladene Bilder und erzeugte Dateien liegen nur auf diesem Rechner in
-programm\app\workdir und werden nach 24 Stunden automatisch gelöscht.
+- Die App schickt nichts ins Internet. Bilder bleiben auf diesem Rechner.
+- Von hochgeladenen Fotos speichert die App nur die Bildpunkte. Angaben wie
+  GPS-Ort, Kamera oder Name des Fotografen werden sofort verworfen.
+- Hochgeladene Bilder und erzeugte Dateien liegen in programm\app\workdir.
+  Sie werden nach 24 Stunden gelöscht und bei jedem Start der App komplett.
+- "Vorlesen" nutzt nur Stimmen, die auf diesem Rechner installiert sind.
+- Gespeicherte Druckdateien landen im Download-Ordner des Browsers. Den
+  räumt die App nicht auf: bitte regelmäßig leeren.
+- Fotos, auf denen Personen zu erkennen sind, nur mit deren Einverständnis
+  drucken.
 
 
 LIZENZEN
