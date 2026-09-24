@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TexStyle DTF</title>
-<link rel="icon" href="data:,">
+<meta name="theme-color" content="#0b4a8b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   /* Farben mit mindestens 7:1 Kontrast für Text (WCAG 2.2, Stufe AAA), weil
      manche Beschäftigte schlecht sehen. Alle Größen in rem, damit der Knopf
@@ -288,12 +291,15 @@
 
 </main>
 
+<script src="rip.js"></script>
 <script>
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
 
-  const zustand = { uploadId: null, pruefNr: 0 };
+  // Alles wird im Browser gerechnet (rip.js); das Bild verlässt das Gerät nie.
+  const R = window.TexStyleRip;
+  const zustand = { bild: null, pruefNr: 0, dateiUrl: null };
 
   // ---------- Große Schrift (wird im Browser gemerkt, falls erlaubt) ----------
   const schriftBtn = $('schrift-btn');
@@ -359,23 +365,13 @@
   }
   function leere(ziel) { ziel.replaceChildren(); }
 
-  // Server-Fehlertext für Fachkräfte klein unter den einfachen Satz hängen
-  function fehlerSatz(einfach, daten) {
-    return daten && daten.detail ? einfach + ' Hinweis für die Fachkraft: ' + daten.detail : einfach;
+  // Bekannte Fehler (RipFehler) sind schon Klartext; alles andere bekommt einen einfachen Satz
+  function fehlerSatz(einfach, fehler) {
+    if (fehler instanceof R.RipFehler) return fehler.message;
+    return einfach + (fehler && fehler.message ? ' Hinweis für die Fachkraft: ' + fehler.message : '');
   }
-
-  async function senden(url, felder) {
-    const fd = new FormData();
-    Object.entries(felder).forEach(([k, v]) => fd.append(k, v));
-    let antwort;
-    try {
-      antwort = await fetch(url, { method: 'POST', body: fd });
-    } catch (e) {
-      return { ok: false, daten: { detail: 'Keine Verbindung zur App. Läuft das Programm noch?' } };
-    }
-    const daten = await antwort.json().catch(() => ({}));
-    return { ok: antwort.ok, daten };
-  }
+  // Kurz warten, damit die Warteanzeige erscheint, bevor die Rechnung den Browser beschäftigt
+  const kurzWarten = () => new Promise((ok) => setTimeout(ok, 30));
 
   // ---------- Schritt 1: Bild ----------
   const dateiInput = $('datei-input');
@@ -387,20 +383,22 @@
   ablage.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) hochladen(e.dataTransfer.files[0]); });
 
   async function hochladen(datei) {
-    zustand.uploadId = null;
+    zustand.bild = null;
     schritteFreigeben();
     ergebnisZuruecksetzen();
     leere($('status-2'));
     zeigeStatus($('status-1'), 'warten', 'Das Bild wird geladen.');
-    const { ok, daten } = await senden('/api/upload', { datei });
-    if (!ok) {
+    await kurzWarten();
+    try {
+      zustand.bild = await R.ladeBild(datei);
+    } catch (e) {
       $('vorschau').classList.add('versteckt');
-      zeigeStatus($('status-1'), 'rot', fehlerSatz('Das Bild geht nicht. Nimm ein anderes Bild (JPG, PNG oder WebP).', daten), true);
+      zeigeStatus($('status-1'), 'rot', fehlerSatz('Das Bild geht nicht. Nimm ein anderes Bild (JPG, PNG oder WebP).', e), true);
       return;
     }
-    zustand.uploadId = daten.upload_id;
-    $('vorschau-bild').src = daten.vorschau_url;
-    $('bild-info').textContent = 'Bildgröße: ' + daten.breite_px + ' × ' + daten.hoehe_px + ' Pixel' + (daten.rand_entfernt ? ' (leerer Rand entfernt)' : '');
+    const b = zustand.bild;
+    $('vorschau-bild').src = R.vorschau(b.leinwand, 600);
+    $('bild-info').textContent = 'Bildgröße: ' + b.breite + ' × ' + b.hoehe + ' Pixel' + (b.randEntfernt ? ' (leerer Rand entfernt)' : '');
     $('vorschau').classList.remove('versteckt');
     zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da. Jetzt bei Schritt 2 die Größe wählen.');
     schritteFreigeben();
@@ -413,12 +411,14 @@
     const r = document.querySelector('input[name=format]:checked');
     return r ? r.value : null;
   }
-  function formatFelder() {
-    const code = formatGewaehlt();
-    const f = { upload_id: zustand.uploadId, format_code: code, anpassung: document.querySelector('input[name=anpassung]:checked').value };
-    if (code === 'CUSTOM') { f.breite_mm = $('frei-breite').value; f.hoehe_mm = $('frei-hoehe').value; }
-    f.kanten_haerten = $('kanten-haerten').checked ? 'true' : 'false';
-    return f;
+  function einstellungen() {
+    return {
+      code: formatGewaehlt(),
+      breiteMm: $('frei-breite').value,
+      hoeheMm: $('frei-hoehe').value,
+      anpassung: document.querySelector('input[name=anpassung]:checked').value,
+      kantenHaerten: $('kanten-haerten').checked,
+    };
   }
   document.querySelectorAll('input[name=format]').forEach((r) => r.addEventListener('change', () => { $('frei-an').checked = false; eingabeGeaendert(); }));
   document.querySelectorAll('input[name=anpassung]').forEach((r) => r.addEventListener('change', eingabeGeaendert));
@@ -436,7 +436,7 @@
   function eingabeGeaendert() {
     ergebnisZuruecksetzen();
     schritteFreigeben();
-    if (zustand.uploadId && formatGewaehlt()) pruefen(); else leere($('status-2'));
+    if (zustand.bild && formatGewaehlt()) pruefen(); else leere($('status-2'));
   }
 
   const PRUEF_SATZ = {
@@ -444,25 +444,30 @@
     gelb: 'Das Bild wird etwas unscharf. Besser eine kleinere Größe wählen.',
     rot: 'Das Bild ist zu klein für diese Größe. Wähl eine kleinere Größe oder ein größeres Bild.',
   };
-  async function pruefen() {
-    const nr = ++zustand.pruefNr;
-    zeigeStatus($('status-2'), 'warten', 'Die Größe wird geprüft.');
-    const { ok, daten } = await senden('/api/aufloesung-pruefen', formatFelder());
-    if (nr !== zustand.pruefNr) return; // inzwischen neu gewählt
-    if (!ok) { zeigeStatus($('status-2'), 'rot', fehlerSatz('Die Größe geht so nicht.', daten), true); return; }
+  function pruefen() {
+    const e = einstellungen();
+    let ergebnis;
+    try {
+      ergebnis = R.pruefeGroesse(zustand.bild, e.code, e.breiteMm, e.hoeheMm, e.anpassung);
+    } catch (fehler) {
+      zeigeStatus($('status-2'), 'rot', fehlerSatz('Die Größe geht so nicht.', fehler), true);
+      return;
+    }
     const cm = (mm) => (mm / 10).toFixed(1).replace('.', ',');
-    zeigeStatus($('status-2'), daten.ampel, PRUEF_SATZ[daten.ampel] + ' Druckgröße: ' + cm(daten.druckgroesse_mm.breite) + ' × ' + cm(daten.druckgroesse_mm.hoehe) + ' cm (' + Math.round(daten.dpi_effektiv) + ' dpi).');
+    const g = ergebnis.groesse, a = ergebnis.aufloesung;
+    zeigeStatus($('status-2'), a.ampel, PRUEF_SATZ[a.ampel] + ' Druckgröße: ' + cm(g.breiteMm) + ' × ' + cm(g.hoeheMm) + ' cm (' + Math.round(a.dpi) + ' dpi).');
   }
 
   // ---------- Schritt 3: Druck-Datei ----------
   const machenBtn = $('machen-btn');
   function ergebnisZuruecksetzen() {
+    if (zustand.dateiUrl) { URL.revokeObjectURL(zustand.dateiUrl); zustand.dateiUrl = null; }
     leere($('status-3'));
     $('speichern-bereich').classList.add('versteckt');
     $('pruef-details').classList.add('versteckt');
   }
   function schritteFreigeben() {
-    const bild = !!zustand.uploadId;
+    const bild = !!zustand.bild;
     const format = bild && !!formatGewaehlt();
     $('schritt-2').classList.toggle('aus', !bild);
     $('schritt-3').classList.toggle('aus', !format);
@@ -487,11 +492,19 @@
     ergebnisZuruecksetzen();
     machenBtn.disabled = true;
     zeigeStatus($('status-3'), 'warten', 'Die Druck-Datei wird gemacht. Das kann eine Minute dauern.');
-    const { ok, daten } = await senden('/api/rip-datei-erzeugen', formatFelder());
+    await kurzWarten();
+    const e = einstellungen();
+    let daten;
+    try {
+      daten = await R.erzeugeRipDatei(zustand.bild, e.code, e.breiteMm, e.hoeheMm, e.anpassung, e.kantenHaerten);
+    } catch (fehler) {
+      machenBtn.disabled = false;
+      zeigeStatus($('status-3'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', fehler), true);
+      return;
+    }
     machenBtn.disabled = false;
-    if (!ok) { zeigeStatus($('status-3'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', daten), true); return; }
 
-    const p = daten.preflight;
+    const p = daten.bericht;
     const liste = $('pruef-liste');
     liste.replaceChildren();
     p.punkte.forEach((punkt) => {
@@ -504,7 +517,9 @@
     $('pruef-details').classList.remove('versteckt');
 
     if (p.download_erlaubt) {
-      $('speichern-link').href = daten.download_url;
+      zustand.dateiUrl = URL.createObjectURL(daten.blob);
+      $('speichern-link').href = zustand.dateiUrl;
+      $('speichern-link').download = 'texstyle-dtf-rip.png';
       $('speichern-bereich').classList.remove('versteckt');
       zeigeStatus($('status-3'), p.gesamt_ampel, p.gesamt_ampel === 'gruen'
         ? 'Die Datei für den Drucker ist fertig. Drück auf „Datei speichern“.'
@@ -517,6 +532,11 @@
   });
 
   schritteFreigeben();
+
+  // Offline-Betrieb und „Zum Startbildschirm hinzufügen“ (Android): Service Worker
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* ohne Offline-Speicher weiter nutzbar */ });
+  }
 })();
 </script>
 </body>

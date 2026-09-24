@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageCms
+from PIL import Image
 
 from .formats import PageFormat
 from .preflight import PreflightItem, PreflightReport
@@ -42,7 +42,9 @@ MAX_AUSGABE_PIXEL = 150_000_000
 # Anteil halbtransparenter Pixel, ab dem ohne Härten ein Hinweis kommt
 HALBTRANSPARENZ_HINWEIS = 0.005
 
-SRGB_PROFIL = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+# Festes sRGB-Profil als Datei: Ein frisch erzeugtes Profil enthält einen Zeitstempel
+# und wäre bei jedem Start anders. rip.js im Browser schreibt dieselben Bytes.
+SRGB_PROFIL = (Path(__file__).parent / "srgb.icc").read_bytes()
 
 
 class RipFehler(ValueError):

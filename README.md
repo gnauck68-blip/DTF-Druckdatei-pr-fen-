@@ -127,6 +127,28 @@ Ein anderer Port lässt sich mit `--port` wählen (nur im `--lan`-Startmodus):
 python -m texstyle_dtf.main --port 8080
 ```
 
+## Android-Tablet und Handy
+
+Die Oberfläche rechnet die Datei für den RIP komplett im Browser
+(`texstyle_dtf/static/rip.js`), mit denselben Regeln wie `rip.py`. Darum
+läuft die App auch allein auf Android, ohne PC und ohne Server; das Bild
+verlässt das Gerät nie. Manifest und Service Worker (`manifest.webmanifest`,
+`sw.js`) machen sie installierbar und offline nutzbar.
+
+**Installieren:** GitHub Pages veröffentlicht den `main`-Branch unter
+<https://gnauck68-blip.github.io/DTF-Druckdatei-pr-fen-/>. Dort „App öffnen“
+tippen, dann im Chrome-Menü „App installieren“ bzw. „Zum Startbildschirm
+hinzufügen“. Nach dem ersten Öffnen läuft die App auch im Flugmodus.
+Updates holt sich das Gerät beim nächsten Start mit Internet (dafür in
+`sw.js` die `VERSION` erhöhen).
+
+**Gleiches Ergebnis wie Python:** `tests/test_browser.py` spielt die App auf
+einem nachgebildeten Pixel 7 durch (online und im Flugmodus) und vergleicht
+die Browser-Datei mit der Python-Datei: gleiche Pixelmaße, 300 dpi,
+byte-gleiches sRGB-Profil (`texstyle_dtf/srgb.icc`), harte Kanten,
+deckungsgleiche Motivfläche. Der Test braucht Node.js mit Playwright und
+wird sonst übersprungen.
+
 ## Windows: Offline-Paket ohne Installation
 
 Für Werkstatt-PCs mit Windows gibt es ein fertiges Paket, das ohne

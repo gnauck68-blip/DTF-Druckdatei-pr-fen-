@@ -20,6 +20,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from PIL import Image
 
 from . import dtf, formats, pdfx, preflight, rip
@@ -75,11 +76,6 @@ async def unhandled_exception_handler(request, exc: Exception):
     # Nur Fehler loggen, ohne Dateinamen und ohne Nutzerdaten (Datenschutz-Vorgabe).
     logger.error("Unerwarteter Fehler bei der Verarbeitung einer Anfrage.")
     return JSONResponse(status_code=500, content={"fehler": "Es ist ein unerwarteter Fehler aufgetreten."})
-
-
-@app.get("/")
-async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/api/formate")
@@ -380,6 +376,11 @@ def dtf_datei(dtf_id: str, art: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Datei nicht gefunden. Möglicherweise wurde sie bereits automatisch gelöscht.")
     media_type = "application/pdf" if art == "pdf" else "image/png"
     return FileResponse(path, media_type=media_type, filename=path.name)
+
+
+# Oberfläche, Rechenmodul (rip.js), Service Worker, Manifest und Symbole.
+# Als letztes eingehängt, damit die /api-Routen Vorrang haben.
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="oberflaeche")
 
 
 def _parse_args() -> argparse.Namespace:
