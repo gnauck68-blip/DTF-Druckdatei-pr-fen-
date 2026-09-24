@@ -268,7 +268,7 @@ Style Reference: [artist / film / aesthetic reference if applicable]
 ```
 
 **Tool-specific syntax:**
-- **Midjourney**: Comma-separated descriptors, not prose. Add `--ar`, `--style`, `--v 6` at the end.
+- **Midjourney**: Clear, specific sentences. Add `--ar`, `--raw`, `--no` at the end; omit `--v` unless a specific version is needed.
 - **Stable Diffusion**: Use `(word:1.3)` weight syntax. CFG scale 7 to 12. Negative prompt is mandatory.
 - **DALL-E 3**: Prose works well. Add "do not include any text in the image" unless text is needed.
 - **Sora / video**: Add camera movement (slow dolly, static shot, crane up), duration in seconds, and cut style.
@@ -283,7 +283,7 @@ Style Reference: [artist / film / aesthetic reference if applicable]
 "Attach your reference image to [tool name] before sending this prompt."
 
 **Detect the tool's editing capability:**
-- Midjourney: use `--cref [image URL]` for character reference or `--sref` for style reference
+- Midjourney V8.x: use the Edit Model (up to 4 reference images; replaces Character Reference `--cref` and Omni Reference) or Style References for style
 - DALL-E 3: use the Edit endpoint, not the Generate endpoint. User must be in ChatGPT with image editing enabled
 - Stable Diffusion: use img2img mode, not txt2img. Set denoising strength 0.3-0.6 to preserve the original
 

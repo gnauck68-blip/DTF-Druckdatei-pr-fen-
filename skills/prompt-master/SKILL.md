@@ -1,6 +1,6 @@
 ---
 name: prompt-master
-version: 1.9.0
+version: 1.9.1
 description: Generates optimized prompts for AI tools. Activates only when the user explicitly asks to write, fix, improve, or adapt a prompt for an AI tool (LLM, Cursor, Midjourney, image AI, video AI, coding agents, etc.). Does not activate for general conversation, coding tasks, document writing, or other non-prompt-engineering work.
 ---
 
@@ -299,7 +299,7 @@ Do not assume one universal Claude default. Model lineup as of 2026-06 (apply th
 **Image AI — Generation** (Midjourney, DALL-E 3, Stable Diffusion, SeeDream)
 First detect: generation from scratch or editing an existing image?
 
-- **Midjourney**: Comma-separated descriptors, not prose. Subject first, then style, mood, lighting, composition. Parameters at end: `--ar 16:9 --v 6 --style raw`. Negative prompts via `--no [unwanted elements]`
+- **Midjourney** (V8.x; official docs list V8.2 as default since 2026-07-24, verify via the Model Recency Gate): Describe the image in clear, specific sentences; V8 responds best to longer, more specific prompts. Parameters at end: `--ar 16:9`, `--raw` for a plain or controlled look, `--no [unwanted elements]`. Omit `--v` unless the user needs a specific version.
 - **DALL-E 3**: Prose description works. Add "do not include text in the image unless specified." Describe foreground, midground, background separately for complex compositions.
 - **Stable Diffusion**: `(word:weight)` syntax. CFG 7-12. Negative prompt is MANDATORY. Steps 20-30 for drafts, 40-50 for finals.
 - **SeeDream**: Strong at artistic and stylized generation. Specify art style explicitly (anime, cinematic, painterly) before scene content. Mood and atmosphere descriptors work well. Negative prompt recommended.
