@@ -1,0 +1,12 @@
+{
+  "name": "texstyle-dtf-studio",
+  "private": true,
+  "description": "Texstyle DTF Studio: Web-App, die komplett im Browser läuft (Quellcode aus ChatGPT Sites).",
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "test": "node --test tests/*.test.mjs && for f in tests/workflow.cjs tests/crop-ui.cjs tests/offline-exports.cjs tests/save-dialog.cjs tests/dimension-input.cjs tests/preview.cjs; do node \"$f\" || exit 1; done"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.9"
+  }
+}

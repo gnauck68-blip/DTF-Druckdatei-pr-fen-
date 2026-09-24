@@ -149,6 +149,39 @@ byte-gleiches sRGB-Profil (`texstyle_dtf/srgb.icc`), harte Kanten,
 deckungsgleiche Motivfläche. Der Test braucht Node.js mit Playwright und
 wird sonst übersprungen.
 
+## Texstyle DTF Studio (Ordner `studio/`)
+
+Eine zweite, eigenständige Web-App. Sie wurde mit ChatGPT erstellt und lief
+unter `texstyle-dtf-studio.gnauck68.chatgpt.site` (ChatGPT Sites, nur mit
+Login). Der Quellcode ist hier unverändert übernommen; nur die Tests suchen
+das Canvas-Paket jetzt im eigenen `node_modules` statt in der
+ChatGPT-Umgebung.
+
+Die App läuft komplett im Browser: Freistellen nach Farbe, Zuschnitt,
+Tonwerte, Halbtonraster auf der Transparenz, Weißmaske, Sammelbogen, Export
+als PNG, PDF oder einfarbiges SVG. Einzelheiten stehen in
+`studio/README.md`.
+
+Achtung beim Zusammenspiel mit dem RIP: Raster und Weißmaske aus dem Studio
+nehmen Arbeit vorweg, die laut „Aufgabenteilung zwischen App und RIP“ der
+RIP machen soll. Für die normale RIP-Datei diese Funktionen ausgeschaltet
+lassen. Das Studio bettet außerdem kein sRGB-Profil ein.
+
+Starten: `studio/dist/index.html` über einen lokalen Webserver öffnen, zum
+Beispiel `python -m http.server` im Ordner `studio/dist`. Der Offline-Modus
+(Service Worker) ist auf ChatGPT Sites zugeschnitten: Er lädt `.html`-Seiten
+ohne Endung, und das Manifest startet unter `/offline.html`. Auf einem
+anderen Server oder in einem Unterordner klappt die Offline-Einrichtung
+deshalb nicht ohne Anpassung; die App selbst funktioniert.
+
+Tests (Node.js 22):
+
+```bash
+cd studio
+npm install
+npm test
+```
+
 ## Windows: Offline-Paket ohne Installation
 
 Für Werkstatt-PCs mit Windows gibt es ein fertiges Paket, das ohne

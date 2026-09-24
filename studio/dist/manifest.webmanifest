@@ -1,0 +1,33 @@
+{
+  "name": "Texstyle DTF Studio",
+  "short_name": "DTF Studio",
+  "start_url": "/offline.html",
+  "display": "standalone",
+  "background_color": "#edf1f0",
+  "theme_color": "#122b31",
+  "icons": [
+    {
+      "src": "app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "app-icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/",
+  "scope": "/",
+  "lang": "de",
+  "description": "DTF-Druckdaten freistellen, bearbeiten und als transparente PNG- oder PDF-Datei exportieren.",
+  "prefer_related_applications": false
+}
