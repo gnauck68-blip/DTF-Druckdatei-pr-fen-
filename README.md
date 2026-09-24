@@ -309,7 +309,9 @@ sehen, und lässt sich mit Maus oder nur mit der Tastatur bedienen:
   erscheint nur, wenn eine deutsche Stimme installiert ist; lokale Stimmen
   werden bevorzugt, damit es ohne Internet funktioniert. Gibt es mehrere,
   lässt sich daneben die Stimme wählen („Frau: Katja“, „Mann: Stefan“); nach
-  dem Wechsel sagt sie „Hallo. So klinge ich.“ Die Wahl wird im Browser gemerkt,
+  dem Wechsel sagt sie „Hallo. So klinge ich.“ Die Wahl wird im Browser gemerkt.
+  Android-Chrome meldet meist nur eine Stimme; dort wird Frau oder Mann in den
+  Android-Einstellungen unter Text-zu-Sprache gewählt,
 - deutlich sichtbarer Tastaturfokus, Meldungen für Screenreader
   (`aria-live`, `role="alert"`),
 - Fachbegriffe und Fachregler nur im zugeklappten Bereich „Für Fachkräfte“.

@@ -69,13 +69,15 @@
       const name = v.name.replace(/^Microsoft\s+/i, '').replace(/\s*[-–(].*$/, '').trim();
       const o = document.createElement('option');
       o.value = v.voiceURI;
-      o.textContent = art ? art + ': ' + name : 'Stimme ' + nummer + ': ' + name;
+      o.textContent = art ? art + ': ' + name : 'Stimme ' + nummer;
       return o;
     }));
     if (alle.some((v) => v.voiceURI === gemerkt)) stimmeWahl.value = gemerkt;
     const da = alle.length > 0;
     document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
-    $('stimme-feld').classList.toggle('versteckt', !da);
+    // Auswahl nur, wenn es etwas zu wählen gibt. Android-Chrome meldet meist nur eine
+    // Stimme; dort wird Frau oder Mann in den Android-Einstellungen gewählt.
+    $('stimme-feld').classList.toggle('versteckt', alle.length < 2);
   }
   // Zeilen ohne Satzzeichen bekommen einen Punkt, sonst liest die Stimme sie ohne Pause
   // in einem Atemzug zusammen und betont falsch.
