@@ -133,6 +133,56 @@ def compute_geometry(page_format: PageFormat, bleed_mm: float = BLEED_MM) -> Pag
     )
 
 
+# Wie das Bild ins Format gesetzt wird. Das Seitenverhältnis bleibt in beiden
+# Fällen erhalten, das Bild wird nie verzerrt.
+#   einpassen: ganzes Motiv mittig im Endformat (TrimBox), nichts wird abgeschnitten.
+#   fuellen:   Bild füllt Endformat samt Anschnitt (BleedBox), Überstand wird abgeschnitten.
+ANPASSUNG_EINPASSEN = "einpassen"
+ANPASSUNG_FUELLEN = "fuellen"
+ANPASSUNGEN = (ANPASSUNG_EINPASSEN, ANPASSUNG_FUELLEN)
+
+
+class UngueltigeAnpassungError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class BildPlatzierung:
+    """Position und Größe des Bildes auf der Seite in PDF-Punkten."""
+
+    x0: float
+    y0: float
+    breite: float
+    hoehe: float
+
+
+def bild_platzierung(breite_px: int, hoehe_px: int, geo: PageGeometry, anpassung: str) -> BildPlatzierung:
+    """Setzt das Bild mit unverändertem Seitenverhältnis mittig ins Format."""
+    if anpassung == ANPASSUNG_EINPASSEN:
+        box = (geo.trim_x0, geo.trim_y0, geo.trim_x1, geo.trim_y1)
+        waehle = min
+    elif anpassung == ANPASSUNG_FUELLEN:
+        box = (geo.bleed_x0, geo.bleed_y0, geo.bleed_x1, geo.bleed_y1)
+        waehle = max
+    else:
+        raise UngueltigeAnpassungError(f"Unbekannte Anpassung: {anpassung!r}")
+    box_w, box_h = box[2] - box[0], box[3] - box[1]
+    skala = waehle(box_w / breite_px, box_h / hoehe_px)
+    breite, hoehe = breite_px * skala, hoehe_px * skala
+    return BildPlatzierung(
+        x0=box[0] + (box_w - breite) / 2,
+        y0=box[1] + (box_h - hoehe) / 2,
+        breite=breite,
+        hoehe=hoehe,
+    )
+
+
+def platzierte_groesse_mm(breite_px: int, hoehe_px: int, page_format: PageFormat, anpassung: str) -> tuple[float, float]:
+    """Größe, in der das Bild gedruckt wird, in mm (für die Auflösungsprüfung vorab)."""
+    p = bild_platzierung(breite_px, hoehe_px, compute_geometry(page_format), anpassung)
+    return p.breite / PT_PER_MM, p.hoehe / PT_PER_MM
+
+
 def _crop_marks_content(geo: PageGeometry) -> str:
     """Erzeugt die PDF-Content-Stream-Befehle für die vier Schnittmarken-Ecken."""
     mark_len = _mm(MARK_LAENGE_MM)
@@ -199,7 +249,7 @@ def _registration_marks_content(geo: PageGeometry) -> str:
     return "\n".join(parts)
 
 
-def _build_source_pdf(cmyk_image: Image.Image, geo: PageGeometry, title: str) -> pikepdf.Pdf:
+def _build_source_pdf(cmyk_image: Image.Image, geo: PageGeometry, title: str, anpassung: str) -> pikepdf.Pdf:
     pdf = pikepdf.Pdf.new()
     page = pdf.add_blank_page(page_size=(geo.media_w_pt, geo.media_h_pt))
 
@@ -217,10 +267,13 @@ def _build_source_pdf(cmyk_image: Image.Image, geo: PageGeometry, title: str) ->
 
     bleed_w = geo.bleed_x1 - geo.bleed_x0
     bleed_h = geo.bleed_y1 - geo.bleed_y0
+    platz = bild_platzierung(cmyk_image.width, cmyk_image.height, geo, anpassung)
 
     content_lines = [
         "q",
-        f"{bleed_w:.4f} 0 0 {bleed_h:.4f} {geo.bleed_x0:.4f} {geo.bleed_y0:.4f} cm",
+        # Alles außerhalb des Anschnitts abschneiden (greift nur beim Füllen, wo das Bild übersteht)
+        f"{geo.bleed_x0:.4f} {geo.bleed_y0:.4f} {bleed_w:.4f} {bleed_h:.4f} re W n",
+        f"{platz.breite:.4f} 0 0 {platz.hoehe:.4f} {platz.x0:.4f} {platz.y0:.4f} cm",
         "/Im0 Do",
         "Q",
         "q",
@@ -351,8 +404,16 @@ class PdfXExportResult:
     profile: TargetProfileInfo
 
 
-def export_pdfx(image: Image.Image, page_format: PageFormat, output_path: Path, title: str = "TexStyle DTF Druckdatei") -> PdfXExportResult:
+def export_pdfx(
+    image: Image.Image,
+    page_format: PageFormat,
+    output_path: Path,
+    title: str = "TexStyle DTF Druckdatei",
+    anpassung: str = ANPASSUNG_EINPASSEN,
+) -> PdfXExportResult:
     """Orchestriert CMYK-Konvertierung, Farbauftragsbegrenzung und PDF/X-1a-Export."""
+    if anpassung not in ANPASSUNGEN:
+        raise UngueltigeAnpassungError(f"Unbekannte Anpassung: {anpassung!r}")
     profile = get_target_profile_info()
 
     cmyk_image = convert_to_cmyk(image)
@@ -366,7 +427,7 @@ def export_pdfx(image: Image.Image, page_format: PageFormat, output_path: Path, 
         source_pdf_path = tmp_path / "quelle.pdf"
         pdfx_def_path = tmp_path / "pdfx_def.ps"
 
-        source_pdf = _build_source_pdf(cmyk_image, geo, title)
+        source_pdf = _build_source_pdf(cmyk_image, geo, title, anpassung)
         source_pdf.save(source_pdf_path)
         source_pdf.close()
 

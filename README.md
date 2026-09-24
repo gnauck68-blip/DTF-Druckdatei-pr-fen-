@@ -103,18 +103,52 @@ python -m texstyle_dtf.main --port 8080
 ## Beispieldurchlauf
 
 1. `TEXSTYLE_ICC_CMYK` setzen (siehe oben) und die App starten.
-2. Im Browser ein Bild hochladen (JPG, PNG oder WebP, max. 50 MB).
-3. Ein Format wählen, z. B. A3, und auf „Auflösung prüfen" klicken – die
-   Ampel zeigt, ob die Bildauflösung für dieses Format ausreicht.
-4. Auf „Druck-PDF erzeugen" klicken. Die App zeigt danach die
-   Preflight-Ampel für alle Prüfpunkte (Auflösung, Farbraum, ICC-Profil,
-   Farbauftrag, TrimBox, BleedBox, PDF-Version, OutputIntent, Dateigröße).
-   Ist alles grün oder gelb, erscheint ein Download-Link; bei Rot ist der
-   Download gesperrt und der betroffene Punkt wird benannt.
-5. Für den Textildruck: im Abschnitt „DTF-Modul" Rasterweite, Rasterwinkel
-   und Knockout-Schwelle einstellen und auf „DTF-Dateien erzeugen" klicken.
-   Es entstehen zwei deckungsgleiche PNG-Dateien (Farbfilm und Weißplatte,
-   300 dpi) sowie ein Vorschau-PDF.
+2. **Schritt 1 „Bild aussuchen“:** Bild wählen (JPG, PNG oder WebP, max. 50 MB,
+   höchstens 100 Millionen Pixel) oder mit der Maus auf die Fläche ziehen.
+   Die Vorschau zeigt durchsichtige Stellen als Karomuster.
+3. **Schritt 2 „Größe wählen“:** Auf eine Größe tippen (A6 bis A3). Die App
+   prüft sofort, ob das Bild dafür scharf genug ist, und zeigt „Gut“,
+   „Achtung“ oder „Stopp“.
+4. **Schritt 3 „Druck-Datei machen“:** Die App erzeugt das Druck-PDF und prüft
+   es (Preflight). Bei „Gut“ oder „Achtung“ erscheint „Datei speichern“; bei
+   „Stopp“ ist der Download gesperrt. Die einzelnen Prüfpunkte (Auflösung,
+   Farbraum, ICC-Profil, Farbauftrag, TrimBox, BleedBox, PDF-Version,
+   OutputIntent, Dateigröße) stehen unter „Genaue Prüfung (für Fachkräfte)“.
+5. **Für Fachkräfte** (zugeklappter Bereich unten): eigene Größe in mm,
+   „Einpassen“ oder „Randlos füllen“ und das DTF-Modul mit Rasterweite,
+   Rasterwinkel und Knockout-Schwelle. Es entstehen zwei deckungsgleiche
+   PNG-Dateien (Farbfilm und Weißplatte, 300 dpi) sowie ein Vorschau-PDF.
+
+### Bild ins Format setzen
+
+Das Seitenverhältnis des Bildes bleibt immer erhalten, das Bild wird nie
+verzerrt.
+
+- **Einpassen** (Standard): Das ganze Motiv steht mittig im Endformat (TrimBox).
+  Nichts wird abgeschnitten; es kann ein freier Rand bleiben.
+- **Randlos füllen:** Das Bild füllt Endformat und 3 mm Anschnitt (BleedBox).
+  Was übersteht, wird abgeschnitten.
+
+Die Auflösung wird immer an der Größe gemessen, in der das Bild tatsächlich
+gedruckt wird: vorab in Schritt 2 und im Preflight direkt aus dem PDF.
+
+### Bedienung und Barrierefreiheit
+
+Die Oberfläche ist für Menschen gebaut, die schlecht lesen oder schlecht
+sehen, und lässt sich mit Maus oder nur mit der Tastatur bedienen:
+
+- drei geführte Schritte mit Bildsymbolen und kurzen Sätzen,
+- Ampel immer mit Symbol, Wort und Farbe („Gut“ mit Haken, „Achtung“ mit
+  Dreieck, „Stopp“ mit Achteck), nie nur über die Farbe,
+- Textkontraste von mindestens 7:1 (WCAG 2.2, Stufe AAA),
+- Knopf „Große Schrift“ (vergrößert die ganze Seite um 25 %, wird im
+  Browser gemerkt),
+- Knopf „Vorlesen“ mit den Sprachausgabe-Stimmen des Betriebssystems. Er
+  erscheint nur, wenn eine deutsche Stimme installiert ist; lokale Stimmen
+  werden bevorzugt, damit es ohne Internet funktioniert,
+- deutlich sichtbarer Tastaturfokus, Meldungen für Screenreader
+  (`aria-live`, `role="alert"`),
+- Fachbegriffe und Fachregler nur im zugeklappten Bereich „Für Fachkräfte“.
 
 ### Beispieldurchlauf über die Kommandozeile prüfen
 

@@ -5,3 +5,4 @@ workdir/uploads/*
 workdir/outputs/*
 !workdir/uploads/.gitkeep
 !workdir/outputs/.gitkeep
+.venv/

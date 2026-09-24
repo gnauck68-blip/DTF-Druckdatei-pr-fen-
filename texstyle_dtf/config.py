@@ -29,6 +29,10 @@ CLEANUP_INTERVAL_SECONDS = 60 * 60
 # Maximale Upload-Größe in Byte (Vorgabe: 50 MB).
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
+# Maximale Bildgröße in Pixeln. Deckt z. B. 58 x 100 cm bei 300 dpi ab (rund 81 MP)
+# und schützt vor Bildern, deren Pixelzahl den Arbeitsspeicher sprengt.
+MAX_BILD_PIXEL = 100_000_000
+
 # Erlaubte Bildformate für den Upload.
 ALLOWED_UPLOAD_CONTENT_TYPES = {
     "image/jpeg": (".jpg", ".jpeg"),
@@ -61,6 +65,8 @@ DTF_LPI_DEFAULT = 45.0
 DTF_LPI_MIN = 10.0
 DTF_LPI_MAX = 150.0
 DTF_WINKEL_DEFAULT = 22.5
+DTF_WINKEL_MIN = 0.0
+DTF_WINKEL_MAX = 90.0
 DTF_KNOCKOUT_DEFAULT = 240
 DTF_KNOCKOUT_MIN = 0
 DTF_KNOCKOUT_MAX = 255

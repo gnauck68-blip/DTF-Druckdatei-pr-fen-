@@ -29,6 +29,8 @@ from .config import (
     DTF_LPI_MAX,
     DTF_LPI_MIN,
     DTF_WINKEL_DEFAULT,
+    DTF_WINKEL_MAX,
+    DTF_WINKEL_MIN,
     MAX_UPLOAD_BYTES,
     OUTPUT_DIR,
     PROJECT_ROOT,
@@ -85,9 +87,12 @@ async def formate() -> list[dict]:
     ]
 
 
+# Die API-Funktionen sind bewusst ohne async geschrieben: FastAPI führt sie dann
+# in einem Thread-Pool aus. Eine lange Berechnung (DTF-Film, PDF) blockiert so
+# nicht mehr alle anderen Anfragen, etwa von einem zweiten Arbeitsplatz.
 @app.post("/api/upload")
-async def upload(datei: UploadFile = File(...)) -> dict:
-    raw = await datei.read()
+def upload(datei: UploadFile = File(...)) -> dict:
+    raw = datei.file.read(MAX_UPLOAD_BYTES + 1)
     if len(raw) > MAX_UPLOAD_BYTES:
         max_mb = MAX_UPLOAD_BYTES / (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"Die Datei ist zu groß. Erlaubt sind maximal {max_mb:.0f} MB.")
@@ -105,7 +110,7 @@ async def upload(datei: UploadFile = File(...)) -> dict:
 
 
 @app.get("/api/vorschau/{upload_id}")
-async def vorschau(upload_id: str) -> FileResponse:
+def vorschau(upload_id: str) -> FileResponse:
     path = find_preview(upload_id)
     if path is None:
         raise HTTPException(status_code=404, detail="Vorschau nicht gefunden.")
@@ -113,25 +118,26 @@ async def vorschau(upload_id: str) -> FileResponse:
 
 
 @app.post("/api/aufloesung-pruefen")
-async def aufloesung_pruefen(
+def aufloesung_pruefen(
     upload_id: str = Form(...),
     format_code: str = Form(...),
     breite_mm: float | None = Form(default=None),
     hoehe_mm: float | None = Form(default=None),
+    anpassung: str = Form(default=pdfx.ANPASSUNG_EINPASSEN),
 ) -> dict:
     stored_path = find_stored_upload(upload_id)
     if stored_path is None:
         raise HTTPException(status_code=404, detail="Bild nicht gefunden. Bitte erneut hochladen.")
 
-    try:
-        page_format = formats.resolve_format(format_code, breite_mm, hoehe_mm)
-    except formats.InvalidFormatError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    page_format = _format_oder_400(format_code, breite_mm, hoehe_mm)
+    _pruefe_anpassung(anpassung)
 
     with Image.open(stored_path) as img:
         width_px, height_px = img.size
 
-    result = check_resolution(width_px, height_px, page_format.width_mm, page_format.height_mm)
+    # Geprüft wird die Größe, in der das Bild tatsächlich gedruckt wird (eingepasst oder füllend)
+    druck_w_mm, druck_h_mm = pdfx.platzierte_groesse_mm(width_px, height_px, page_format, anpassung)
+    result = check_resolution(width_px, height_px, druck_w_mm, druck_h_mm)
 
     return {
         "format": {"code": page_format.code, "label": page_format.label},
@@ -140,7 +146,20 @@ async def aufloesung_pruefen(
         "dpi_effektiv": round(result.dpi_effective, 1),
         "ampel": result.ampel,
         "hinweis": result.hinweis,
+        "druckgroesse_mm": {"breite": round(druck_w_mm, 1), "hoehe": round(druck_h_mm, 1)},
     }
+
+
+def _format_oder_400(format_code: str, breite_mm: float | None, hoehe_mm: float | None) -> formats.PageFormat:
+    try:
+        return formats.resolve_format(format_code, breite_mm, hoehe_mm)
+    except formats.InvalidFormatError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+def _pruefe_anpassung(anpassung: str) -> None:
+    if anpassung not in pdfx.ANPASSUNGEN:
+        raise HTTPException(status_code=400, detail="Unbekannte Einstellung: Bild einpassen oder Fläche füllen wählen.")
 
 
 def _is_safe_pdf_id(pdf_id: str) -> bool:
@@ -168,27 +187,26 @@ def _pdf_pfad_oder_404(pdf_id: str) -> Path:
 
 
 @app.post("/api/pdf-erzeugen")
-async def pdf_erzeugen(
+def pdf_erzeugen(
     upload_id: str = Form(...),
     format_code: str = Form(...),
     breite_mm: float | None = Form(default=None),
     hoehe_mm: float | None = Form(default=None),
+    anpassung: str = Form(default=pdfx.ANPASSUNG_EINPASSEN),
 ) -> dict:
     stored_path = find_stored_upload(upload_id)
     if stored_path is None:
         raise HTTPException(status_code=404, detail="Bild nicht gefunden. Bitte erneut hochladen.")
 
-    try:
-        page_format = formats.resolve_format(format_code, breite_mm, hoehe_mm)
-    except formats.InvalidFormatError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    page_format = _format_oder_400(format_code, breite_mm, hoehe_mm)
+    _pruefe_anpassung(anpassung)
 
     pdf_id = uuid.uuid4().hex
     output_path = OUTPUT_DIR / f"{pdf_id}.pdf"
 
     try:
         with Image.open(stored_path) as img:
-            result = pdfx.export_pdfx(img, page_format, output_path)
+            result = pdfx.export_pdfx(img, page_format, output_path, anpassung=anpassung)
     except ICCProfileMissingError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except (pdfx.GhostscriptNotFoundError, pdfx.PdfXExportError) as exc:
@@ -212,14 +230,14 @@ async def pdf_erzeugen(
 
 
 @app.get("/api/preflight/{pdf_id}")
-async def preflight_abrufen(pdf_id: str) -> dict:
+def preflight_abrufen(pdf_id: str) -> dict:
     path = _pdf_pfad_oder_404(pdf_id)
     bericht = preflight.run_preflight(path)
     return _preflight_report_dict(bericht)
 
 
 @app.get("/api/pdf/{pdf_id}")
-async def pdf_download(pdf_id: str) -> FileResponse:
+def pdf_download(pdf_id: str) -> FileResponse:
     path = _pdf_pfad_oder_404(pdf_id)
 
     # Preflight wird vor jedem Download erneut geprüft (Punkt 8): Bei Rot ist
@@ -247,7 +265,7 @@ def _is_safe_dtf_id(dtf_id: str) -> bool:
 
 
 @app.post("/api/dtf-erzeugen")
-async def dtf_erzeugen(
+def dtf_erzeugen(
     upload_id: str = Form(...),
     lpi: float = Form(default=DTF_LPI_DEFAULT),
     winkel_grad: float = Form(default=DTF_WINKEL_DEFAULT),
@@ -261,6 +279,11 @@ async def dtf_erzeugen(
         raise HTTPException(
             status_code=400,
             detail=f"Die Rasterweite muss zwischen {DTF_LPI_MIN:.0f} und {DTF_LPI_MAX:.0f} liegen.",
+        )
+    if not (DTF_WINKEL_MIN <= winkel_grad <= DTF_WINKEL_MAX):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Der Rasterwinkel muss zwischen {DTF_WINKEL_MIN:.0f} und {DTF_WINKEL_MAX:.0f} Grad liegen.",
         )
     if not (DTF_KNOCKOUT_MIN <= knockout_schwelle <= DTF_KNOCKOUT_MAX):
         raise HTTPException(
@@ -289,7 +312,7 @@ async def dtf_erzeugen(
 
 
 @app.get("/api/dtf-datei/{dtf_id}/{art}")
-async def dtf_datei(dtf_id: str, art: str) -> FileResponse:
+def dtf_datei(dtf_id: str, art: str) -> FileResponse:
     if not _is_safe_dtf_id(dtf_id) or art not in _DTF_DATEI_NAMEN:
         raise HTTPException(status_code=404, detail="Datei nicht gefunden.")
     path = OUTPUT_DIR / f"{dtf_id}{_DTF_DATEI_NAMEN[art]}"

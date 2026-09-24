@@ -4,414 +4,535 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TexStyle DTF</title>
+<link rel="icon" href="data:,">
 <style>
+  /* Farben mit mindestens 7:1 Kontrast für Text (WCAG 2.2, Stufe AAA), weil
+     manche Beschäftigte schlecht sehen. Alle Größen in rem, damit der Knopf
+     „Große Schrift“ die ganze Seite mitvergrößert. */
   :root{
-    --bg:#f2f3f5; --panel:#ffffff; --ink:#16181a; --muted:#5c646c;
-    --accent:#0a5fb4; --line:#d9dde1;
-    --gruen:#1e8a4a; --gelb:#9a6c00; --rot:#c0272d;
-    --gruen-bg:#e6f4ec; --gelb-bg:#fdf3d8; --rot-bg:#fbe8e8;
+    --bg:#eef0f3; --panel:#ffffff; --ink:#111417; --muted:#3b4249;
+    --accent:#0b4a8b; --accent-dunkel:#083866; --line:#8a939c;
+    --fokus:#ffbf00;
+    --gut:#0a4a22; --gut-bg:#e2f3e7;
+    --achtung:#553800; --achtung-bg:#fff1c9;
+    --stopp:#86101a; --stopp-bg:#fde4e4;
   }
+  html{font-size:20px;}
+  html.gross{font-size:25px;}
   *{box-sizing:border-box}
   body{
     margin:0; background:var(--bg); color:var(--ink);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    font-size:16px; line-height:1.5;
+    font-size:1rem; line-height:1.5;
   }
-  header{padding:24px 20px 8px; max-width:820px; margin:0 auto;}
-  header h1{margin:0; font-size:1.6rem; font-weight:700;}
-  header p{margin:6px 0 0; color:var(--muted);}
-  main{max-width:820px; margin:0 auto; padding:16px 20px 60px; display:grid; gap:20px;}
-  section.panel{
-    background:var(--panel); border:1px solid var(--line); border-radius:10px;
-    padding:20px;
+  /* Deutlich sichtbarer Fokus für Tastaturbedienung */
+  :focus-visible{outline:.25rem solid var(--fokus); outline-offset:.15rem; box-shadow:0 0 0 .4rem var(--ink);}
+
+  .kopf{max-width:52rem; margin:0 auto; padding:1rem 1rem .25rem; display:flex; flex-wrap:wrap; align-items:center; gap:.75rem 1rem;}
+  .kopf h1{margin:0; font-size:1.6rem; flex:1 1 auto;}
+  .kopf-knoepfe{display:flex; gap:.5rem; flex-wrap:wrap;}
+  main{max-width:52rem; margin:0 auto; padding:.5rem 1rem 3rem; display:grid; grid-template-columns:minmax(0,1fr); gap:1.25rem;}
+
+  .schritt{
+    background:var(--panel); border:.1rem solid var(--line); border-radius:.75rem;
+    padding:1.25rem;
   }
-  h2{margin:0 0 12px; font-size:1.1rem;}
-  .drop{
-    border:2px dashed var(--line); border-radius:10px; padding:28px;
-    text-align:center; color:var(--muted); cursor:pointer;
+  .schritt.aus{opacity:.55;}
+  .schritt-kopf{display:flex; align-items:center; gap:.75rem; margin-bottom:.75rem;}
+  .schritt-nr{
+    flex:0 0 auto; width:2.6rem; height:2.6rem; border-radius:50%;
+    background:var(--accent); color:#fff; font-weight:800; font-size:1.3rem;
+    display:flex; align-items:center; justify-content:center;
   }
-  .drop.hover{border-color:var(--accent); color:var(--accent);}
-  input[type=file]{display:none;}
-  .vorschau-bereich{display:flex; gap:16px; align-items:flex-start; margin-top:14px; flex-wrap:wrap;}
-  .vorschau-bereich img{max-width:220px; max-height:220px; border:1px solid var(--line); border-radius:6px;}
-  .info-liste{font-size:.95rem; color:var(--muted);}
-  label{display:block; font-weight:600; margin-bottom:4px; font-size:.92rem;}
-  select, input[type=number]{
-    padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:1rem;
-    width:100%;
+  .schritt-kopf h2{margin:0; font-size:1.3rem; flex:1 1 auto; min-width:0; hyphens:auto;}
+  .schritt p{margin:.25rem 0 .75rem;}
+  svg.symbol{width:2.4rem; height:2.4rem; flex:0 0 auto;}
+
+  button, .knopf{
+    display:inline-flex; align-items:center; justify-content:center; gap:.6rem;
+    min-height:3.2rem; padding:.6rem 1.3rem; border-radius:.6rem;
+    border:.15rem solid var(--accent); background:var(--accent); color:#fff;
+    font:inherit; font-weight:700; cursor:pointer; text-decoration:none;
+    max-width:100%; text-align:center;
   }
-  .format-zeile{display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:14px;}
-  .frei-felder{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  button:hover, .knopf:hover{background:var(--accent-dunkel);}
+  button.leise{background:#fff; color:var(--accent);}
+  button.leise:hover{background:#e6eef7;}
+  button[aria-pressed="true"]{background:var(--accent-dunkel); color:#fff;}
+  button:disabled{background:#d5d9dd; border-color:#8a939c; color:#3b4249; cursor:not-allowed;}
+  .gross-knopf{width:100%; min-height:4.2rem; font-size:1.25rem; padding-left:.6rem; padding-right:.6rem;}
+  button svg, .knopf svg{width:1.6rem; height:1.6rem; flex:0 0 auto;}
+
+  .ablage{
+    border:.2rem dashed var(--line); border-radius:.75rem; padding:1rem;
+    display:grid; grid-template-columns:minmax(0,1fr); gap:.75rem; justify-items:center; text-align:center;
+  }
+  .ablage.drueber{border-color:var(--accent); background:#e6eef7;}
+  input[type=file]{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;}
+
+  .vorschau{display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-top:1rem;}
+  /* Karomuster zeigt, wo das Bild durchsichtig ist */
+  .karo{
+    background-color:#fff;
+    background-image:conic-gradient(#c9ced3 25%, transparent 0 50%, #c9ced3 0 75%, transparent 0);
+    background-size:1.2rem 1.2rem; border:.1rem solid var(--line); border-radius:.4rem;
+    padding:.25rem; line-height:0;
+  }
+  .karo{max-width:100%;}
+  .karo img{max-width:min(12rem, 100%); max-height:12rem;}
+
+  .formate{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr)); gap:.75rem; border:0; padding:0; margin:0;}
+  .formate legend{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0);}
+  .kachel{position:relative;}
+  .kachel input{position:absolute; opacity:0; inset:0; width:100%; height:100%; margin:0; cursor:pointer;}
+  .kachel span.inhalt{
+    display:flex; flex-direction:column; align-items:center; gap:.4rem; text-align:center;
+    border:.15rem solid var(--line); border-radius:.6rem; padding:.8rem .5rem; min-height:100%;
+  }
+  .kachel .blatt{border:.15rem solid var(--ink); background:#fff; border-radius:.15rem;}
+  .kachel b{font-size:1.3rem;}
+  .kachel small{font-size:.85rem; color:var(--muted);}
+  .kachel input:checked + span.inhalt{border-color:var(--accent); background:#e6eef7; box-shadow:inset 0 0 0 .15rem var(--accent);}
+  .kachel input:checked + span.inhalt::after{content:"✓ gewählt"; font-weight:700; color:var(--accent);}
+  .kachel input:focus-visible + span.inhalt{outline:.25rem solid var(--fokus); outline-offset:.15rem; box-shadow:0 0 0 .4rem var(--ink);}
+
+  /* Ampel: Form + Wort + Farbe, nie nur Farbe */
+  .status{display:flex; gap:.9rem; align-items:flex-start; margin-top:1rem; padding:1rem; border-radius:.6rem; border:.15rem solid;}
+  .status svg{width:2.8rem; height:2.8rem; flex:0 0 auto;}
+  .status b{display:block; font-size:1.3rem;}
+  .status.gruen{background:var(--gut-bg); color:var(--gut); border-color:var(--gut);}
+  .status.gelb{background:var(--achtung-bg); color:var(--achtung); border-color:var(--achtung);}
+  .status.rot{background:var(--stopp-bg); color:var(--stopp); border-color:var(--stopp);}
+  .status.warten{background:#e6eef7; color:var(--accent-dunkel); border-color:var(--accent);}
+  .dreht{animation:dreh 1.2s linear infinite;}
+  @keyframes dreh{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion: reduce){.dreht{animation:none;}}
+
+  details{margin-top:1rem; border-top:.1rem solid var(--line); padding-top:.75rem;}
+  summary{cursor:pointer; font-weight:700; min-height:2.4rem; display:flex; align-items:center;}
+  .fach{font-size:.9rem;}
+  .fach ul{list-style:none; padding:0; margin:.5rem 0 0; display:grid; gap:.4rem;}
+  .fach li{display:flex; gap:.5rem; align-items:flex-start;}
+  .fach li .zeichen{font-weight:800; min-width:5.5rem;}
+
+  .feld{display:grid; gap:.25rem; margin:.75rem 0;}
+  .feld label{font-weight:700;}
+  .feld small{color:var(--muted);}
+  .feld input, .feld select{
+    min-width:0; width:100%;
+    font:inherit; padding:.5rem .7rem; min-height:3rem; border:.15rem solid var(--line); border-radius:.5rem; background:#fff; color:var(--ink);
+  }
+  .zwei{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap:.75rem;}
+  .auswahl{display:grid; gap:.5rem; margin:.5rem 0;}
+  .auswahl label{display:flex; gap:.6rem; align-items:flex-start; font-weight:400;}
+  .auswahl input{width:1.4rem; height:1.4rem; margin-top:.2rem; flex:0 0 auto;}
+  .links{display:grid; gap:.5rem; margin-top:.75rem;}
   .versteckt{display:none !important;}
-  button{
-    background:var(--accent); color:#fff; border:none; border-radius:6px;
-    padding:10px 18px; font-size:1rem; cursor:pointer;
+  /* Schmale Bildschirme: etwas kleinere Grundschrift und weniger Rand, damit
+     auch mit „Große Schrift“ keine Wörter zerrissen werden */
+  @media (max-width: 30rem){
+    html{font-size:18px;}
+    html.gross{font-size:21px;}
+    main{padding:.5rem .6rem 2rem;}
+    .kopf{padding:.75rem .6rem .25rem;}
+    .schritt{padding:.9rem;}
+    .schritt-kopf svg.symbol{display:none;}
+    .ablage{padding:.6rem;}
+    .status{padding:.75rem; gap:.6rem;}
+    .status svg{width:2.2rem; height:2.2rem;}
   }
-  button:disabled{background:#a9b3bc; cursor:not-allowed;}
-  .ampel{
-    margin-top:16px; padding:14px 16px; border-radius:8px; font-weight:600;
-  }
-  .ampel.gruen{background:var(--gruen-bg); color:var(--gruen);}
-  .ampel.gelb{background:var(--gelb-bg); color:var(--gelb);}
-  .ampel.rot{background:var(--rot-bg); color:var(--rot);}
-  .fehler{
-    margin-top:14px; padding:12px 14px; border-radius:8px;
-    background:var(--rot-bg); color:var(--rot); font-weight:600;
-  }
-  .preflight-liste{list-style:none; margin:16px 0 0; padding:0; display:grid; gap:8px;}
-  .preflight-liste li{
-    display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:8px;
-    background:#f7f8f9; border:1px solid var(--line);
-  }
-  .punkt{
-    flex:0 0 auto; width:14px; height:14px; border-radius:50%; margin-top:3px;
-  }
-  .punkt.gruen{background:var(--gruen);}
-  .punkt.gelb{background:var(--gelb);}
-  .punkt.rot{background:var(--rot);}
-  .preflight-text strong{display:block; font-size:.9rem;}
-  .preflight-text span{color:var(--muted); font-size:.9rem;}
-  .download-btn{
-    display:inline-block; margin-top:16px; text-decoration:none; text-align:center;
-  }
-  .gesperrt-hinweis{
-    margin-top:16px; padding:14px 16px; border-radius:8px; font-weight:600;
-    background:var(--rot-bg); color:var(--rot);
-  }
+  .fachbereich{background:var(--panel); border:.1rem solid var(--line); border-radius:.75rem; padding:0 1.25rem 1.25rem;}
+  .fachbereich > summary{font-size:1.15rem; padding-top:1rem;}
+  .fachbereich > details{margin-top:1.25rem;}
+  .fachbereich h3{margin:1.25rem 0 .25rem; font-size:1.1rem;}
 </style>
 </head>
 <body>
-<header>
+
+<!-- Wiederverwendbare Symbole -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-bild" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-groesse" viewBox="0 0 24 24"><rect x="4" y="3" width="11" height="15" fill="none" stroke="currentColor" stroke-width="2"/><path d="M18 3v15M16.5 5 18 3l1.5 2M16.5 16 18 18l1.5-2M4 21h11M6 19.5 4 21l2 1.5M13 19.5 15 21l-2 1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-drucken" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-7h16v7h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="7" y="14" width="10" height="7" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-gut" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-achtung" viewBox="0 0 24 24"><path d="M12 2 23 21H1z" fill="currentColor"/><path d="M12 9v5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.5" fill="#fff"/></symbol>
+  <symbol id="i-stopp" viewBox="0 0 24 24"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z" fill="currentColor"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-warten" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="42 15" stroke-linecap="round"/></symbol>
+  <symbol id="i-sprechen" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-speichern" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 19h16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-schrift" viewBox="0 0 24 24"><path d="M2 20 7 6l5 14M4 15h6M14 20l4-10 4 10M15.5 17h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+</svg>
+
+<header class="kopf">
   <h1>TexStyle DTF</h1>
-  <p>Bild hochladen, Format wählen, Druckqualität prüfen.</p>
+  <div class="kopf-knoepfe">
+    <button type="button" class="leise" id="schrift-btn" aria-pressed="false">
+      <svg aria-hidden="true"><use href="#i-schrift"/></svg>Große Schrift
+    </button>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="hilfe">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
+  </div>
+  <p id="hilfe" style="margin:0; flex-basis:100%;">So geht es: 1. Bild aussuchen. 2. Größe wählen. 3. Druck-Datei machen.</p>
 </header>
+
 <main>
 
-  <section class="panel">
-    <h2>1. Bild hochladen</h2>
-    <div class="drop" id="drop">
-      Bild hier ablegen oder klicken zum Auswählen<br>
-      <small>JPG, PNG oder WebP, maximal 50 MB</small>
-      <input type="file" id="datei-input" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+  <!-- Schritt 1 -->
+  <section class="schritt" id="schritt-1" aria-labelledby="titel-1">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">1</span>
+      <h2 id="titel-1">Bild aussuchen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-bild"/></svg>
     </div>
-    <div id="fehler-upload" class="fehler versteckt"></div>
-    <div class="vorschau-bereich versteckt" id="vorschau-bereich">
-      <img id="vorschau-bild" alt="Vorschau des hochgeladenen Bildes">
-      <div class="info-liste">
-        <div>Bildgröße: <span id="info-pixel"></span> Pixel</div>
-      </div>
+    <p id="text-1">Such das Bild aus, das gedruckt werden soll.</p>
+    <div class="ablage" id="ablage">
+      <button type="button" class="gross-knopf" id="bild-btn">
+        <svg aria-hidden="true"><use href="#i-bild"/></svg>Bild aussuchen
+      </button>
+      <span>Du kannst das Bild auch mit der Maus hierher ziehen.</span>
+      <input type="file" id="datei-input" tabindex="-1" aria-hidden="true"
+             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
     </div>
+    <div id="status-1" aria-live="polite"></div>
+    <div class="vorschau versteckt" id="vorschau">
+      <div class="karo"><img id="vorschau-bild" alt="Das ausgesuchte Bild"></div>
+      <div id="bild-info"></div>
+    </div>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-1" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
   </section>
 
-  <section class="panel">
-    <h2>2. Format wählen</h2>
-    <div class="format-zeile">
-      <div>
-        <label for="format-auswahl">Endformat</label>
-        <select id="format-auswahl">
-          <option value="A6">A6 (105 x 148 mm)</option>
-          <option value="A5">A5 (148 x 210 mm)</option>
-          <option value="A4" selected>A4 (210 x 297 mm)</option>
-          <option value="A3">A3 (297 x 420 mm)</option>
-          <option value="CUSTOM">Freies Format (mm)</option>
-        </select>
-      </div>
-      <div class="frei-felder versteckt" id="frei-felder">
-        <div>
-          <label for="frei-breite">Breite (mm)</label>
-          <input type="number" id="frei-breite" min="10" max="3000" step="1" value="210">
-        </div>
-        <div>
-          <label for="frei-hoehe">Höhe (mm)</label>
-          <input type="number" id="frei-hoehe" min="10" max="3000" step="1" value="297">
-        </div>
-      </div>
+  <!-- Schritt 2 -->
+  <section class="schritt aus" id="schritt-2" aria-labelledby="titel-2">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">2</span>
+      <h2 id="titel-2">Größe wählen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-groesse"/></svg>
     </div>
-    <button id="pruefen-btn" disabled>Auflösung prüfen</button>
-    <div id="fehler-pruefung" class="fehler versteckt"></div>
-    <div id="ampel-ergebnis" class="ampel versteckt"></div>
+    <p id="text-2">Wie groß soll der Druck werden? Tipp auf eine Größe.</p>
+    <fieldset class="formate" id="formate">
+      <legend>Größe</legend>
+      <label class="kachel"><input type="radio" name="format" value="A6" disabled>
+        <span class="inhalt"><span class="blatt" style="width:1.6rem;height:2.26rem" aria-hidden="true"></span><b>A6</b><span>wie eine Postkarte</span><small>10,5 × 14,8 cm</small></span></label>
+      <label class="kachel"><input type="radio" name="format" value="A5" disabled>
+        <span class="inhalt"><span class="blatt" style="width:2.26rem;height:3.2rem" aria-hidden="true"></span><b>A5</b><span>ein halbes Blatt</span><small>14,8 × 21 cm</small></span></label>
+      <label class="kachel"><input type="radio" name="format" value="A4" disabled>
+        <span class="inhalt"><span class="blatt" style="width:3.2rem;height:4.53rem" aria-hidden="true"></span><b>A4</b><span>ein Blatt Papier</span><small>21 × 29,7 cm</small></span></label>
+      <label class="kachel"><input type="radio" name="format" value="A3" disabled>
+        <span class="inhalt"><span class="blatt" style="width:4.53rem;height:6.4rem" aria-hidden="true"></span><b>A3</b><span>zwei Blätter groß</span><small>29,7 × 42 cm</small></span></label>
+    </fieldset>
+    <div id="status-2" aria-live="polite"></div>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-2 status-2" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
   </section>
 
-  <section class="panel">
-    <h2>3. Druck-PDF erzeugen und prüfen</h2>
-    <p class="info-liste">Erzeugt die druckfertige PDF-Datei und prüft sie automatisch, bevor der Download freigegeben wird.</p>
-    <button id="erzeugen-btn" disabled>Druck-PDF erzeugen</button>
-    <div id="fehler-erzeugen" class="fehler versteckt"></div>
-    <ul id="preflight-liste" class="preflight-liste versteckt"></ul>
-    <a id="download-link" class="download-btn versteckt" href="#">PDF herunterladen</a>
-    <div id="gesperrt-hinweis" class="gesperrt-hinweis versteckt">
-      Der Download ist gesperrt, weil mindestens ein Prüfpunkt rot ist. Bitte oben die roten Punkte beheben
-      (z. B. ein größeres Bild verwenden) und die PDF-Datei neu erzeugen.
+  <!-- Schritt 3 -->
+  <section class="schritt aus" id="schritt-3" aria-labelledby="titel-3">
+    <div class="schritt-kopf">
+      <span class="schritt-nr" aria-hidden="true">3</span>
+      <h2 id="titel-3">Druck-Datei machen</h2>
+      <svg class="symbol" aria-hidden="true"><use href="#i-drucken"/></svg>
     </div>
+    <p id="text-3">Drück auf den Knopf. Die App macht die Datei und prüft sie.</p>
+    <button type="button" class="gross-knopf" id="machen-btn" disabled>
+      <svg aria-hidden="true"><use href="#i-drucken"/></svg>Druck-Datei machen
+    </button>
+    <div id="status-3" aria-live="polite"></div>
+    <div class="links versteckt" id="speichern-bereich">
+      <a class="knopf gross-knopf" id="speichern-link" href="#" download>
+        <svg aria-hidden="true"><use href="#i-speichern"/></svg>Datei speichern
+      </a>
+    </div>
+    <details class="fach versteckt" id="pruef-details">
+      <summary>Genaue Prüfung (für Fachkräfte)</summary>
+      <ul id="pruef-liste"></ul>
+    </details>
+    <button type="button" class="leise vorlesen-btn versteckt" data-lies="text-3 status-3" style="margin-top:.75rem">
+      <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
+    </button>
   </section>
 
-  <section class="panel">
-    <h2>4. DTF-Modul: Farbfilm und Weißplatte</h2>
-    <p class="info-liste">Für den Textildruck: rastert den Farbfilm und berechnet die weiße Unterdruckschicht.</p>
-    <div class="format-zeile">
-      <div>
-        <label for="dtf-lpi">Rasterweite (Linien pro Zoll)</label>
-        <input type="number" id="dtf-lpi" min="10" max="150" step="1" value="45">
-      </div>
-      <div>
-        <label for="dtf-winkel">Rasterwinkel (Grad)</label>
-        <input type="number" id="dtf-winkel" min="0" max="90" step="0.5" value="22.5">
-      </div>
-      <div>
-        <label for="dtf-knockout">Knockout-Schwelle (0-255, hell = kein Weiß)</label>
-        <input type="number" id="dtf-knockout" min="0" max="255" step="1" value="240">
-      </div>
+  <!-- Fachkräfte -->
+  <details class="fachbereich" id="fachbereich">
+    <summary>Für Fachkräfte: weitere Einstellungen</summary>
+
+    <h3>Eigene Größe</h3>
+    <div class="auswahl">
+      <label><input type="checkbox" id="frei-an" disabled> Eigene Größe in Millimetern statt A6 bis A3</label>
     </div>
-    <button id="dtf-btn" disabled>DTF-Dateien erzeugen</button>
-    <div id="fehler-dtf" class="fehler versteckt"></div>
-    <div id="dtf-ergebnis" class="vorschau-bereich versteckt">
-      <div class="info-liste">
-        <div>Pixelmaße (beide Filme deckungsgleich): <span id="dtf-pixelmasse"></span></div>
-        <div style="margin-top:10px;">
-          <a id="dtf-farbfilm-link" class="download-btn" href="#">Farbfilm (PNG) herunterladen</a><br>
-          <a id="dtf-weissplatte-link" class="download-btn" href="#">Weißplatte (PNG) herunterladen</a><br>
-          <a id="dtf-pdf-link" class="download-btn" href="#">Vorschau-PDF herunterladen</a>
-        </div>
-      </div>
+    <div class="zwei">
+      <div class="feld"><label for="frei-breite">Breite (mm)</label><input type="number" id="frei-breite" min="10" max="3000" step="1" value="210" disabled></div>
+      <div class="feld"><label for="frei-hoehe">Höhe (mm)</label><input type="number" id="frei-hoehe" min="10" max="3000" step="1" value="297" disabled></div>
     </div>
-  </section>
+
+    <h3>Bild ins Format setzen</h3>
+    <div class="auswahl" role="radiogroup" aria-label="Bild ins Format setzen">
+      <label><input type="radio" name="anpassung" value="einpassen" checked>
+        <span><b>Einpassen</b> (Standard): Das ganze Bild ist zu sehen, nichts wird abgeschnitten. Es kann ein freier Rand bleiben.</span></label>
+      <label><input type="radio" name="anpassung" value="fuellen">
+        <span><b>Randlos füllen</b>: Das Bild füllt Format und 3 mm Anschnitt. Was übersteht, wird abgeschnitten.</span></label>
+    </div>
+
+    <details>
+      <summary>DTF-Modul: Farbfilm und Weißplatte</summary>
+      <p class="fach">Rastert den Farbfilm und berechnet die weiße Unterdruckschicht. Die Filmgröße ergibt sich aus den Bildpixeln bei 300 dpi.</p>
+      <div class="feld"><label for="dtf-lpi">Rasterweite (Linien pro Zoll)</label><input type="number" id="dtf-lpi" min="10" max="150" step="1" value="45"><small>10 bis 150. Kleiner = gröbere Punkte.</small></div>
+      <div class="feld"><label for="dtf-winkel">Rasterwinkel (Grad)</label><input type="number" id="dtf-winkel" min="0" max="90" step="0.5" value="22.5"><small>0 bis 90.</small></div>
+      <div class="feld"><label for="dtf-knockout">Knockout-Schwelle</label><input type="number" id="dtf-knockout" min="0" max="255" step="1" value="240"><small>0 bis 255. Pixel heller als dieser Wert bekommen kein Weiß.</small></div>
+      <button type="button" id="dtf-btn" disabled>DTF-Dateien erzeugen</button>
+      <div id="status-dtf" aria-live="polite"></div>
+      <div class="links versteckt" id="dtf-links">
+        <a class="knopf" id="dtf-farbfilm-link" href="#" download><svg aria-hidden="true"><use href="#i-speichern"/></svg>Farbfilm (PNG) speichern</a>
+        <a class="knopf" id="dtf-weissplatte-link" href="#" download><svg aria-hidden="true"><use href="#i-speichern"/></svg>Weißplatte (PNG) speichern</a>
+        <a class="knopf" id="dtf-pdf-link" href="#" download><svg aria-hidden="true"><use href="#i-speichern"/></svg>Vorschau-PDF speichern</a>
+      </div>
+    </details>
+  </details>
 
 </main>
 
 <script>
 (function () {
-  const dropZone = document.getElementById('drop');
-  const dateiInput = document.getElementById('datei-input');
-  const fehlerUpload = document.getElementById('fehler-upload');
-  const vorschauBereich = document.getElementById('vorschau-bereich');
-  const vorschauBild = document.getElementById('vorschau-bild');
-  const infoPixel = document.getElementById('info-pixel');
-  const formatAuswahl = document.getElementById('format-auswahl');
-  const freiFelder = document.getElementById('frei-felder');
-  const freiBreite = document.getElementById('frei-breite');
-  const freiHoehe = document.getElementById('frei-hoehe');
-  const pruefenBtn = document.getElementById('pruefen-btn');
-  const fehlerPruefung = document.getElementById('fehler-pruefung');
-  const ampelErgebnis = document.getElementById('ampel-ergebnis');
-  const erzeugenBtn = document.getElementById('erzeugen-btn');
-  const fehlerErzeugen = document.getElementById('fehler-erzeugen');
-  const preflightListe = document.getElementById('preflight-liste');
-  const downloadLink = document.getElementById('download-link');
-  const gesperrtHinweis = document.getElementById('gesperrt-hinweis');
-  const dtfBtn = document.getElementById('dtf-btn');
-  const dtfLpi = document.getElementById('dtf-lpi');
-  const dtfWinkel = document.getElementById('dtf-winkel');
-  const dtfKnockout = document.getElementById('dtf-knockout');
-  const fehlerDtf = document.getElementById('fehler-dtf');
-  const dtfErgebnis = document.getElementById('dtf-ergebnis');
-  const dtfPixelmasse = document.getElementById('dtf-pixelmasse');
-  const dtfFarbfilmLink = document.getElementById('dtf-farbfilm-link');
-  const dtfWeissplatteLink = document.getElementById('dtf-weissplatte-link');
-  const dtfPdfLink = document.getElementById('dtf-pdf-link');
+  'use strict';
+  const $ = (id) => document.getElementById(id);
 
-  let aktuelleUploadId = null;
+  const zustand = { uploadId: null, pruefNr: 0 };
 
-  function zeigeFehler(el, text) {
-    el.textContent = text;
-    el.classList.remove('versteckt');
+  // ---------- Große Schrift (wird im Browser gemerkt, falls erlaubt) ----------
+  const schriftBtn = $('schrift-btn');
+  function setzeSchrift(an) {
+    document.documentElement.classList.toggle('gross', an);
+    schriftBtn.setAttribute('aria-pressed', an ? 'true' : 'false');
   }
-  function versteckeFehler(el) {
-    el.classList.add('versteckt');
+  try { setzeSchrift(localStorage.getItem('texstyle-schrift') === 'gross'); } catch (e) { /* ohne Speicher */ }
+  schriftBtn.addEventListener('click', () => {
+    const an = !document.documentElement.classList.contains('gross');
+    setzeSchrift(an);
+    try { localStorage.setItem('texstyle-schrift', an ? 'gross' : 'normal'); } catch (e) { /* ohne Speicher */ }
+  });
+
+  // ---------- Vorlesen mit den Stimmen des Betriebssystems (offline) ----------
+  const sprache = window.speechSynthesis;
+  function deutscheStimme() {
+    const stimmen = sprache ? sprache.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith('de')) : [];
+    // Lokale Stimmen zuerst: Sie funktionieren ohne Internet
+    return stimmen.find((v) => v.localService) || stimmen[0] || null;
+  }
+  function vorlesenPruefen() {
+    const da = !!deutscheStimme();
+    document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
+  }
+  if (sprache) {
+    vorlesenPruefen();
+    sprache.addEventListener('voiceschanged', vorlesenPruefen);
+  }
+  function vorlesen(text) {
+    const stimme = deutscheStimme();
+    if (!stimme || !text) return;
+    sprache.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
+    sprache.speak(u);
+  }
+  document.querySelectorAll('.vorlesen-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const text = btn.dataset.lies.split(' ').map((id) => ($(id) ? $(id).innerText : '')).join(' ');
+      vorlesen(text.replace(/\s+/g, ' ').trim());
+    });
+  });
+
+  // ---------- Statusanzeige: Form + Wort + Farbe ----------
+  const STATUS = {
+    gruen: { symbol: 'i-gut', wort: 'Gut' },
+    gelb: { symbol: 'i-achtung', wort: 'Achtung' },
+    rot: { symbol: 'i-stopp', wort: 'Stopp' },
+    warten: { symbol: 'i-warten', wort: 'Bitte warten' },
+  };
+  function zeigeStatus(ziel, art, satz, fehler) {
+    const s = STATUS[art];
+    const box = document.createElement('div');
+    box.className = 'status ' + art;
+    if (fehler) box.setAttribute('role', 'alert');
+    box.innerHTML = '<svg aria-hidden="true"' + (art === 'warten' ? ' class="dreht"' : '') + '><use href="#' + s.symbol + '"/></svg><div><b></b><span></span></div>';
+    box.querySelector('b').textContent = s.wort + '.';
+    box.querySelector('span').textContent = satz;
+    ziel.replaceChildren(box);
+  }
+  function leere(ziel) { ziel.replaceChildren(); }
+
+  // Server-Fehlertext für Fachkräfte klein unter den einfachen Satz hängen
+  function fehlerSatz(einfach, daten) {
+    return daten && daten.detail ? einfach + ' Hinweis für die Fachkraft: ' + daten.detail : einfach;
   }
 
-  dropZone.addEventListener('click', () => dateiInput.click());
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('hover'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
-  dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('hover');
-    if (e.dataTransfer.files.length > 0) {
-      hochladen(e.dataTransfer.files[0]);
+  async function senden(url, felder) {
+    const fd = new FormData();
+    Object.entries(felder).forEach(([k, v]) => fd.append(k, v));
+    let antwort;
+    try {
+      antwort = await fetch(url, { method: 'POST', body: fd });
+    } catch (e) {
+      return { ok: false, daten: { detail: 'Keine Verbindung zur App. Läuft das Programm noch?' } };
     }
-  });
-  dateiInput.addEventListener('change', () => {
-    if (dateiInput.files.length > 0) {
-      hochladen(dateiInput.files[0]);
-    }
-  });
+    const daten = await antwort.json().catch(() => ({}));
+    return { ok: antwort.ok, daten };
+  }
 
-  formatAuswahl.addEventListener('change', () => {
-    freiFelder.classList.toggle('versteckt', formatAuswahl.value !== 'CUSTOM');
-  });
+  // ---------- Schritt 1: Bild ----------
+  const dateiInput = $('datei-input');
+  const ablage = $('ablage');
+  $('bild-btn').addEventListener('click', () => dateiInput.click());
+  dateiInput.addEventListener('change', () => { if (dateiInput.files.length) hochladen(dateiInput.files[0]); dateiInput.value = ''; });
+  ['dragenter', 'dragover'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.add('drueber'); }));
+  ['dragleave', 'drop'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.remove('drueber'); }));
+  ablage.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) hochladen(e.dataTransfer.files[0]); });
 
   async function hochladen(datei) {
-    versteckeFehler(fehlerUpload);
-    ampelErgebnis.classList.add('versteckt');
-    pruefenBtn.disabled = true;
-    aktuelleUploadId = null;
-
-    const formData = new FormData();
-    formData.append('datei', datei);
-
-    let antwort;
-    try {
-      antwort = await fetch('/api/upload', { method: 'POST', body: formData });
-    } catch (e) {
-      zeigeFehler(fehlerUpload, 'Der Upload ist fehlgeschlagen. Bitte erneut versuchen.');
+    zustand.uploadId = null;
+    schritteFreigeben();
+    ergebnisZuruecksetzen();
+    leere($('status-2'));
+    zeigeStatus($('status-1'), 'warten', 'Das Bild wird geladen.');
+    const { ok, daten } = await senden('/api/upload', { datei });
+    if (!ok) {
+      $('vorschau').classList.add('versteckt');
+      zeigeStatus($('status-1'), 'rot', fehlerSatz('Das Bild geht nicht. Nimm ein anderes Bild (JPG, PNG oder WebP).', daten), true);
       return;
     }
-
-    const daten = await antwort.json().catch(() => ({}));
-    if (!antwort.ok) {
-      zeigeFehler(fehlerUpload, daten.detail || 'Der Upload ist fehlgeschlagen.');
-      return;
-    }
-
-    aktuelleUploadId = daten.upload_id;
-    vorschauBild.src = daten.vorschau_url;
-    infoPixel.textContent = `${daten.breite_px} x ${daten.hoehe_px}`;
-    vorschauBereich.classList.remove('versteckt');
-    pruefenBtn.disabled = false;
-    erzeugenBtn.disabled = false;
-    dtfBtn.disabled = false;
-    preflightListe.classList.add('versteckt');
-    downloadLink.classList.add('versteckt');
-    gesperrtHinweis.classList.add('versteckt');
-    dtfErgebnis.classList.add('versteckt');
+    zustand.uploadId = daten.upload_id;
+    $('vorschau-bild').src = daten.vorschau_url;
+    $('bild-info').textContent = 'Bildgröße: ' + daten.breite_px + ' × ' + daten.hoehe_px + ' Pixel';
+    $('vorschau').classList.remove('versteckt');
+    zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da. Jetzt bei Schritt 2 die Größe wählen.');
+    schritteFreigeben();
+    if (formatGewaehlt()) pruefen();
   }
 
-  pruefenBtn.addEventListener('click', async () => {
-    if (!aktuelleUploadId) return;
-    versteckeFehler(fehlerPruefung);
-    ampelErgebnis.classList.add('versteckt');
-
-    const formData = new FormData();
-    formData.append('upload_id', aktuelleUploadId);
-    formData.append('format_code', formatAuswahl.value);
-    if (formatAuswahl.value === 'CUSTOM') {
-      formData.append('breite_mm', freiBreite.value);
-      formData.append('hoehe_mm', freiHoehe.value);
-    }
-
-    let antwort;
-    try {
-      antwort = await fetch('/api/aufloesung-pruefen', { method: 'POST', body: formData });
-    } catch (e) {
-      zeigeFehler(fehlerPruefung, 'Die Prüfung ist fehlgeschlagen. Bitte erneut versuchen.');
-      return;
-    }
-
-    const daten = await antwort.json().catch(() => ({}));
-    if (!antwort.ok) {
-      zeigeFehler(fehlerPruefung, daten.detail || 'Die Prüfung ist fehlgeschlagen.');
-      return;
-    }
-
-    ampelErgebnis.className = 'ampel ' + daten.ampel;
-    ampelErgebnis.textContent = daten.hinweis;
-    ampelErgebnis.classList.remove('versteckt');
+  // ---------- Schritt 2: Größe ----------
+  function formatGewaehlt() {
+    if ($('frei-an').checked) return 'CUSTOM';
+    const r = document.querySelector('input[name=format]:checked');
+    return r ? r.value : null;
+  }
+  function formatFelder() {
+    const code = formatGewaehlt();
+    const f = { upload_id: zustand.uploadId, format_code: code, anpassung: document.querySelector('input[name=anpassung]:checked').value };
+    if (code === 'CUSTOM') { f.breite_mm = $('frei-breite').value; f.hoehe_mm = $('frei-hoehe').value; }
+    return f;
+  }
+  document.querySelectorAll('input[name=format]').forEach((r) => r.addEventListener('change', () => { $('frei-an').checked = false; eingabeGeaendert(); }));
+  document.querySelectorAll('input[name=anpassung]').forEach((r) => r.addEventListener('change', eingabeGeaendert));
+  $('frei-an').addEventListener('change', () => {
+    if ($('frei-an').checked) document.querySelectorAll('input[name=format]').forEach((r) => { r.checked = false; });
+    eingabeGeaendert();
   });
+  let tippPause = null;
+  ['frei-breite', 'frei-hoehe'].forEach((id) => $(id).addEventListener('input', () => {
+    if (!$('frei-an').checked) return;
+    clearTimeout(tippPause); tippPause = setTimeout(eingabeGeaendert, 500);
+  }));
 
-  function zeigePreflight(punkte) {
-    preflightListe.innerHTML = '';
-    for (const punkt of punkte) {
+  function eingabeGeaendert() {
+    ergebnisZuruecksetzen();
+    schritteFreigeben();
+    if (zustand.uploadId && formatGewaehlt()) pruefen(); else leere($('status-2'));
+  }
+
+  const PRUEF_SATZ = {
+    gruen: 'Das Bild ist scharf genug für diese Größe.',
+    gelb: 'Das Bild wird etwas unscharf. Besser eine kleinere Größe wählen.',
+    rot: 'Das Bild ist zu klein für diese Größe. Wähl eine kleinere Größe oder ein größeres Bild.',
+  };
+  async function pruefen() {
+    const nr = ++zustand.pruefNr;
+    zeigeStatus($('status-2'), 'warten', 'Die Größe wird geprüft.');
+    const { ok, daten } = await senden('/api/aufloesung-pruefen', formatFelder());
+    if (nr !== zustand.pruefNr) return; // inzwischen neu gewählt
+    if (!ok) { zeigeStatus($('status-2'), 'rot', fehlerSatz('Die Größe geht so nicht.', daten), true); return; }
+    zeigeStatus($('status-2'), daten.ampel, PRUEF_SATZ[daten.ampel] + ' (' + Math.round(daten.dpi_effektiv) + ' dpi)');
+  }
+
+  // ---------- Schritt 3: Druck-Datei ----------
+  const machenBtn = $('machen-btn');
+  function ergebnisZuruecksetzen() {
+    leere($('status-3'));
+    $('speichern-bereich').classList.add('versteckt');
+    $('pruef-details').classList.add('versteckt');
+  }
+  function schritteFreigeben() {
+    const bild = !!zustand.uploadId;
+    const format = bild && !!formatGewaehlt();
+    $('schritt-2').classList.toggle('aus', !bild);
+    $('schritt-3').classList.toggle('aus', !format);
+    document.querySelectorAll('input[name=format]').forEach((r) => { r.disabled = !bild; });
+    $('frei-an').disabled = !bild;
+    $('frei-breite').disabled = !bild || !$('frei-an').checked;
+    $('frei-hoehe').disabled = !bild || !$('frei-an').checked;
+    machenBtn.disabled = !format;
+    $('dtf-btn').disabled = !bild;
+  }
+
+  const LABEL_EINFACH = { aufloesung: 'Das Bild ist zu klein für diese Größe.' };
+  machenBtn.addEventListener('click', async () => {
+    ergebnisZuruecksetzen();
+    machenBtn.disabled = true;
+    zeigeStatus($('status-3'), 'warten', 'Die Druck-Datei wird gemacht. Das kann eine Minute dauern.');
+    const { ok, daten } = await senden('/api/pdf-erzeugen', formatFelder());
+    machenBtn.disabled = false;
+    if (!ok) { zeigeStatus($('status-3'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', daten), true); return; }
+
+    const p = daten.preflight;
+    const liste = $('pruef-liste');
+    liste.replaceChildren();
+    p.punkte.forEach((punkt) => {
       const li = document.createElement('li');
-      const kreis = document.createElement('span');
-      kreis.className = 'punkt ' + punkt.ampel;
-      const text = document.createElement('div');
-      text.className = 'preflight-text';
-      const stark = document.createElement('strong');
-      stark.textContent = punkt.label;
-      const spanText = document.createElement('span');
-      spanText.textContent = punkt.hinweis;
-      text.appendChild(stark);
-      text.appendChild(spanText);
-      li.appendChild(kreis);
-      li.appendChild(text);
-      preflightListe.appendChild(li);
-    }
-    preflightListe.classList.remove('versteckt');
-  }
+      const z = document.createElement('span'); z.className = 'zeichen';
+      z.textContent = { gruen: '✓ Gut', gelb: '! Achtung', rot: '✗ Stopp' }[punkt.ampel];
+      const t = document.createElement('span'); t.textContent = punkt.label + ': ' + punkt.hinweis;
+      li.append(z, t); liste.appendChild(li);
+    });
+    $('pruef-details').classList.remove('versteckt');
 
-  erzeugenBtn.addEventListener('click', async () => {
-    if (!aktuelleUploadId) return;
-    versteckeFehler(fehlerErzeugen);
-    downloadLink.classList.add('versteckt');
-    gesperrtHinweis.classList.add('versteckt');
-    preflightListe.classList.add('versteckt');
-    erzeugenBtn.disabled = true;
-    erzeugenBtn.textContent = 'PDF wird erzeugt …';
-
-    const formData = new FormData();
-    formData.append('upload_id', aktuelleUploadId);
-    formData.append('format_code', formatAuswahl.value);
-    if (formatAuswahl.value === 'CUSTOM') {
-      formData.append('breite_mm', freiBreite.value);
-      formData.append('hoehe_mm', freiHoehe.value);
-    }
-
-    let antwort;
-    try {
-      antwort = await fetch('/api/pdf-erzeugen', { method: 'POST', body: formData });
-    } catch (e) {
-      zeigeFehler(fehlerErzeugen, 'Die PDF-Erstellung ist fehlgeschlagen. Bitte erneut versuchen.');
-      erzeugenBtn.disabled = false;
-      erzeugenBtn.textContent = 'Druck-PDF erzeugen';
-      return;
-    }
-
-    const daten = await antwort.json().catch(() => ({}));
-    erzeugenBtn.disabled = false;
-    erzeugenBtn.textContent = 'Druck-PDF erzeugen';
-
-    if (!antwort.ok) {
-      zeigeFehler(fehlerErzeugen, daten.detail || 'Die PDF-Erstellung ist fehlgeschlagen.');
-      return;
-    }
-
-    zeigePreflight(daten.preflight.punkte);
-
-    if (daten.preflight.download_erlaubt) {
-      downloadLink.href = daten.download_url;
-      downloadLink.classList.remove('versteckt');
+    if (p.download_erlaubt) {
+      $('speichern-link').href = daten.download_url;
+      $('speichern-bereich').classList.remove('versteckt');
+      zeigeStatus($('status-3'), p.gesamt_ampel, p.gesamt_ampel === 'gruen'
+        ? 'Die Druck-Datei ist fertig. Drück auf „Datei speichern“.'
+        : 'Die Datei ist fertig, hat aber einen Hinweis. Eine Fachkraft soll kurz draufschauen.');
+      $('speichern-link').focus();
     } else {
-      gesperrtHinweis.classList.remove('versteckt');
+      const rot = p.punkte.filter((x) => x.ampel === 'rot');
+      const grund = rot.length === 1 && LABEL_EINFACH[rot[0].schluessel] ? LABEL_EINFACH[rot[0].schluessel] + ' ' : '';
+      zeigeStatus($('status-3'), 'rot', 'Die Datei kann so nicht gedruckt werden. ' + grund + 'Bitte hol eine Fachkraft.', true);
     }
   });
 
-  dtfBtn.addEventListener('click', async () => {
-    if (!aktuelleUploadId) return;
-    versteckeFehler(fehlerDtf);
-    dtfErgebnis.classList.add('versteckt');
-    dtfBtn.disabled = true;
-    dtfBtn.textContent = 'DTF-Dateien werden erzeugt …';
-
-    const formData = new FormData();
-    formData.append('upload_id', aktuelleUploadId);
-    formData.append('lpi', dtfLpi.value);
-    formData.append('winkel_grad', dtfWinkel.value);
-    formData.append('knockout_schwelle', dtfKnockout.value);
-
-    let antwort;
-    try {
-      antwort = await fetch('/api/dtf-erzeugen', { method: 'POST', body: formData });
-    } catch (e) {
-      zeigeFehler(fehlerDtf, 'Die DTF-Erstellung ist fehlgeschlagen. Bitte erneut versuchen.');
-      dtfBtn.disabled = false;
-      dtfBtn.textContent = 'DTF-Dateien erzeugen';
-      return;
-    }
-
-    const daten = await antwort.json().catch(() => ({}));
-    dtfBtn.disabled = false;
-    dtfBtn.textContent = 'DTF-Dateien erzeugen';
-
-    if (!antwort.ok) {
-      zeigeFehler(fehlerDtf, daten.detail || 'Die DTF-Erstellung ist fehlgeschlagen.');
-      return;
-    }
-
-    dtfPixelmasse.textContent = `${daten.breite_px} x ${daten.hoehe_px} Pixel`;
-    dtfFarbfilmLink.href = daten.farbfilm_url;
-    dtfWeissplatteLink.href = daten.weissplatte_url;
-    dtfPdfLink.href = daten.pdf_url;
-    dtfErgebnis.classList.remove('versteckt');
+  // ---------- DTF-Modul (Fachkräfte) ----------
+  $('dtf-btn').addEventListener('click', async () => {
+    const btn = $('dtf-btn');
+    btn.disabled = true;
+    $('dtf-links').classList.add('versteckt');
+    zeigeStatus($('status-dtf'), 'warten', 'Die DTF-Dateien werden berechnet. Bei großen Bildern dauert das bis zu einer Minute.');
+    const { ok, daten } = await senden('/api/dtf-erzeugen', {
+      upload_id: zustand.uploadId,
+      lpi: $('dtf-lpi').value,
+      winkel_grad: $('dtf-winkel').value,
+      knockout_schwelle: $('dtf-knockout').value,
+    });
+    btn.disabled = !zustand.uploadId;
+    if (!ok) { zeigeStatus($('status-dtf'), 'rot', fehlerSatz('Das hat nicht geklappt.', daten), true); return; }
+    $('dtf-farbfilm-link').href = daten.farbfilm_url;
+    $('dtf-weissplatte-link').href = daten.weissplatte_url;
+    $('dtf-pdf-link').href = daten.pdf_url;
+    $('dtf-links').classList.remove('versteckt');
+    const cm = (px) => (px / 300 * 2.54).toFixed(1).replace('.', ',');
+    zeigeStatus($('status-dtf'), 'gruen', 'Fertig: ' + daten.breite_px + ' × ' + daten.hoehe_px + ' Pixel, also ' + cm(daten.breite_px) + ' × ' + cm(daten.hoehe_px) + ' cm mit Filmrand.');
   });
+
+  schritteFreigeben();
 })();
 </script>
 </body>

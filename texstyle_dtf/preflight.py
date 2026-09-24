@@ -6,9 +6,11 @@ unabhängig und nachvollziehbar: Wer die Datei später erneut prüfen will, kann
 das mit genau diesem Modul (bzw. scripts/verify_pdfx.py, das dieselben
 Hilfsfunktionen verwendet) jederzeit wiederholen.
 
-Die Auflösung wird aus dem eingebetteten Bild (Pixelmaße) und der TrimBox
-(Endformat in mm) zurückgerechnet – das ist dieselbe Rechnung wie beim
-Hochladen (siehe resolution.py), nur direkt an der fertigen Datei überprüft.
+Die Auflösung wird aus dem eingebetteten Bild (Pixelmaße) und der Größe
+zurückgerechnet, in der das Bild tatsächlich auf der Seite steht. Dafür wird
+der Seiteninhalt gelesen und die Transformationsmatrix bis zum Bildaufruf
+nachverfolgt. So stimmt die Prüfung auch, wenn das Bild eingepasst statt
+formatfüllend gesetzt ist.
 
 Ampel-Regel: Der Gesamtstatus ist die schlechteste Einzelampel (Rot schlägt
 Gelb schlägt Grün). Bei Rot ist der Download gesperrt (siehe main.py).
@@ -138,19 +140,47 @@ def nicht_eingebettete_schriften(pdf: pikepdf.Pdf) -> tuple[int, list[str]]:
     return anzahl, fehlend
 
 
+def _matrix_mal(m: list[float], n: list[float]) -> list[float]:
+    """PDF-Matrixprodukt m × n (je [a b c d e f])."""
+    return [
+        m[0] * n[0] + m[1] * n[2],
+        m[0] * n[1] + m[1] * n[3],
+        m[2] * n[0] + m[3] * n[2],
+        m[2] * n[1] + m[3] * n[3],
+        m[4] * n[0] + m[5] * n[2] + n[4],
+        m[4] * n[1] + m[5] * n[3] + n[5],
+    ]
+
+
+def platziertes_bild(page: pikepdf.Page) -> tuple[pikepdf.Object, float, float] | None:
+    """Liefert (Bild, Breite in pt, Höhe in pt) des ersten Bildes, so wie es auf der Seite steht."""
+    einheit = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+    ctm, stapel = einheit, []
+    xobjekte = page.obj.get("/Resources", {}).get("/XObject", {})
+    for operanden, operator in pikepdf.parse_content_stream(page):
+        op = str(operator)
+        if op == "q":
+            stapel.append(ctm)
+        elif op == "Q":
+            ctm = stapel.pop() if stapel else einheit
+        elif op == "cm":
+            ctm = _matrix_mal([float(v) for v in operanden], ctm)
+        elif op == "Do":
+            obj = xobjekte.get(operanden[0])
+            if obj is not None and str(obj.get("/Subtype", "")) == "/Image":
+                return obj, float(np.hypot(ctm[0], ctm[1])), float(np.hypot(ctm[2], ctm[3]))
+    return None
+
+
 def _pruefe_aufloesung(pdf: pikepdf.Pdf) -> PreflightItem:
     try:
-        page = pdf.pages[0]
-        trim = page.get("/TrimBox")
-        bilder = _cmyk_bilder(pdf)
-        if trim is None or not bilder:
+        gefunden = platziertes_bild(pdf.pages[0])
+        if gefunden is None:
             return PreflightItem("aufloesung", "Auflösung", "rot", "Auflösung konnte nicht ermittelt werden.")
-        trim_w_mm = _pt_to_mm(float(trim[2]) - float(trim[0]))
-        trim_h_mm = _pt_to_mm(float(trim[3]) - float(trim[1]))
-        bild = bilder[0]
+        bild, breite_pt, hoehe_pt = gefunden
         breite_px = int(bild.get("/Width"))
         hoehe_px = int(bild.get("/Height"))
-        ergebnis = check_resolution(breite_px, hoehe_px, trim_w_mm, trim_h_mm)
+        ergebnis = check_resolution(breite_px, hoehe_px, _pt_to_mm(breite_pt), _pt_to_mm(hoehe_pt))
         return PreflightItem("aufloesung", "Auflösung", ergebnis.ampel, ergebnis.hinweis)
     except Exception:
         return PreflightItem("aufloesung", "Auflösung", "rot", "Auflösung konnte nicht ermittelt werden.")

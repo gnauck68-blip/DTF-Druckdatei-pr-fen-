@@ -40,6 +40,7 @@ da PDF/X-1a nur für das Druck-PDF aus Schritt 2 gilt, nicht für dieses Modul):
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,7 +59,11 @@ class DtfParameterError(ValueError):
     pass
 
 
-def _halbton_punkte(cmyk_array_0_1: np.ndarray, lpi: float, winkel_grad: float, dpi: int) -> np.ndarray:
+# Zeilen pro Rechenstreifen: begrenzt den Speicherbedarf der Rasterung unabhängig von der Bildgröße.
+STREIFEN_ZEILEN = 256
+
+
+def _halbton_punkte(cmyk_array_0_1: np.ndarray, lpi: float, winkel_grad: float, dpi: int, y_versatz: int = 0) -> np.ndarray:
     """Berechnet für ein H,W,4-Array (Werte 0..1) das binäre Halbton-Muster (0/255).
 
     Klassisches amplitudenmoduliertes Rundpunkt-Raster: In einem um
@@ -67,11 +72,14 @@ def _halbton_punkte(cmyk_array_0_1: np.ndarray, lpi: float, winkel_grad: float, 
     des größten einbeschriebenen Kreises je Zelle) wächst ein schwarzer
     Punkt auf weißem Grund; darüber schrumpft ein weißes Loch auf
     schwarzem Grund (klassisches "Euclidean Dot"-Verhalten).
+
+    y_versatz: Zeile, bei der dieser Streifen im Gesamtbild beginnt. Das Raster
+    wird in Bildkoordinaten gerechnet, damit Streifen nahtlos aneinanderpassen.
     """
     hoehe, breite = cmyk_array_0_1.shape[:2]
     zelle_px = dpi / lpi
 
-    y_idx, x_idx = np.mgrid[0:hoehe, 0:breite].astype(np.float64)
+    y_idx, x_idx = np.mgrid[y_versatz:y_versatz + hoehe, 0:breite].astype(np.float64)
     theta = np.radians(winkel_grad)
     xr = x_idx * np.cos(theta) + y_idx * np.sin(theta)
     yr = -x_idx * np.sin(theta) + y_idx * np.cos(theta)
@@ -97,26 +105,31 @@ def _halbton_punkte(cmyk_array_0_1: np.ndarray, lpi: float, winkel_grad: float, 
 
 def render_farbfilm(image: Image.Image, lpi: float, winkel_grad: float, dpi: int = DTF_DPI) -> Image.Image:
     """Erzeugt den halbtongerasterten Farbfilm als RGBA-Bild (siehe Modul-Docstring)."""
-    if lpi <= 0:
+    if not (math.isfinite(lpi) and lpi > 0):
         raise DtfParameterError("Die Rasterweite muss größer als 0 sein.")
+    if not math.isfinite(winkel_grad):
+        raise DtfParameterError("Der Rasterwinkel muss eine Zahl sein.")
 
-    cmyk_bild = limit_ink_coverage(convert_to_cmyk(image))
-    cmyk_arr = np.asarray(cmyk_bild, dtype=np.float64) / 255.0
-
-    halbton = _halbton_punkte(cmyk_arr, lpi, winkel_grad, dpi).astype(np.float64) / 255.0
-    c, m, y, k = (halbton[..., i] for i in range(4))
-
-    r = 255.0 * (1 - c) * (1 - k)
-    g = 255.0 * (1 - m) * (1 - k)
-    b = 255.0 * (1 - y) * (1 - k)
-    rgb = np.clip(np.stack([r, g, b], axis=-1), 0, 255).astype(np.uint8)
-
+    breite, hoehe = image.size
+    rgba = np.empty((hoehe, breite, 4), dtype=np.uint8)
     if image.mode == "RGBA":
-        alpha = np.asarray(image.split()[3], dtype=np.uint8)
+        rgba[..., 3] = np.asarray(image.split()[3], dtype=np.uint8)
     else:
-        alpha = np.full((image.height, image.width), 255, dtype=np.uint8)
+        rgba[..., 3] = 255
 
-    rgba = np.dstack([rgb, alpha])
+    # In Streifen rechnen: Die Gleitkomma-Zwischenwerte der Rasterung brauchen
+    # sonst ein Vielfaches des Bildspeichers (24 MP lagen bei über 3 GB).
+    for y0 in range(0, hoehe, STREIFEN_ZEILEN):
+        y1 = min(hoehe, y0 + STREIFEN_ZEILEN)
+        streifen = image.crop((0, y0, breite, y1))
+        cmyk_arr = np.asarray(limit_ink_coverage(convert_to_cmyk(streifen)), dtype=np.float64) / 255.0
+        halbton = _halbton_punkte(cmyk_arr, lpi, winkel_grad, dpi, y_versatz=y0) > 0
+        c, m, y, k = (halbton[..., i] for i in range(4))
+        # Punkt gesetzt = voller Kanal; (1-c)*(1-k) ist damit 1 nur, wenn beide Punkte fehlen
+        rgba[y0:y1, :, 0] = np.where(c | k, 0, 255)
+        rgba[y0:y1, :, 1] = np.where(m | k, 0, 255)
+        rgba[y0:y1, :, 2] = np.where(y | k, 0, 255)
+
     return Image.fromarray(rgba, mode="RGBA")
 
 
@@ -126,18 +139,17 @@ def render_weissplatte(image: Image.Image, knockout_schwelle: int) -> Image.Imag
         raise DtfParameterError("Die Knockout-Schwelle muss zwischen 0 und 255 liegen.")
 
     if image.mode == "RGBA":
-        alpha = np.asarray(image.split()[3], dtype=np.float64) / 255.0
-        rgb_bild = image.convert("RGB")
+        alpha = np.asarray(image.split()[3], dtype=np.uint8)
     else:
-        rgb_bild = image.convert("RGB")
-        alpha = np.ones((image.height, image.width), dtype=np.float64)
+        alpha = np.full((image.height, image.width), 255, dtype=np.uint8)
 
-    rgb_arr = np.asarray(rgb_bild, dtype=np.float64)
-    helligkeit = 0.299 * rgb_arr[..., 0] + 0.587 * rgb_arr[..., 1] + 0.114 * rgb_arr[..., 2]
-
-    braucht_weiss = (helligkeit < knockout_schwelle).astype(np.float64)
-    weiss = alpha * braucht_weiss
-    weiss_8bit = np.clip(np.round(weiss * 255), 0, 255).astype(np.uint8)
+    # Helligkeit 0,299 R + 0,587 G + 0,114 B in Ganzzahlen (Tausendstel) statt
+    # Gleitkomma: gleiches Ergebnis, ein Viertel des Speichers.
+    rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
+    helligkeit_1000 = rgb[..., 0] * np.int32(299)
+    helligkeit_1000 += rgb[..., 1] * np.int32(587)
+    helligkeit_1000 += rgb[..., 2] * np.int32(114)
+    weiss_8bit = np.where(helligkeit_1000 < knockout_schwelle * 1000, alpha, 0).astype(np.uint8)
     return Image.fromarray(weiss_8bit, mode="L")
 
 

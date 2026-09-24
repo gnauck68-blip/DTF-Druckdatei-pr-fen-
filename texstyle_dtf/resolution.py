@@ -32,14 +32,17 @@ def check_resolution(pixel_width: int, pixel_height: int, width_mm: float, heigh
     dpi_x = pixel_width / (width_mm / MM_PER_INCH)
     dpi_y = pixel_height / (height_mm / MM_PER_INCH)
     dpi_effective = min(dpi_x, dpi_y)
+    # Mit dem angezeigten, gerundeten Wert vergleichen: 2480 px auf A4 (299,95 dpi)
+    # soll nicht als „300 dpi, empfohlen mindestens 300 dpi“ gelb werden.
+    dpi_gerundet = round(dpi_effective)
 
-    if dpi_effective < DPI_ERROR_THRESHOLD:
+    if dpi_gerundet < DPI_ERROR_THRESHOLD:
         ampel = "rot"
         hinweis = (
             f"Auflösung zu niedrig: {dpi_effective:.0f} dpi im Endformat. "
             f"Unter {DPI_ERROR_THRESHOLD} dpi ist der Druck deutlich unscharf."
         )
-    elif dpi_effective < DPI_WARN_THRESHOLD:
+    elif dpi_gerundet < DPI_WARN_THRESHOLD:
         ampel = "gelb"
         hinweis = (
             f"Auflösung grenzwertig: {dpi_effective:.0f} dpi im Endformat. "

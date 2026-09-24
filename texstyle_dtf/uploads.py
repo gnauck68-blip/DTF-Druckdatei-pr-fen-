@@ -9,11 +9,15 @@ from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
 
-from .config import ALLOWED_UPLOAD_CONTENT_TYPES, MAX_UPLOAD_BYTES, UPLOAD_DIR
+from .config import ALLOWED_UPLOAD_CONTENT_TYPES, MAX_BILD_PIXEL, MAX_UPLOAD_BYTES, UPLOAD_DIR
 
 logger = logging.getLogger("texstyle_dtf")
 
 PREVIEW_MAX_SIZE = (600, 600)
+
+# Pillow bricht über dieser Grenze selbst ab (DecompressionBombError); die
+# eigentliche Prüfung mit verständlicher Meldung steht in save_upload().
+Image.MAX_IMAGE_PIXELS = MAX_BILD_PIXEL
 
 
 class UploadError(ValueError):
@@ -55,10 +59,14 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
         with Image.open(io.BytesIO(raw_bytes)) as img:
             real_format = img.format  # z. B. "JPEG", "PNG", "WEBP"
             width_px, height_px = img.size
+    except Image.DecompressionBombError:
+        raise _zu_viele_pixel()
     except (UnidentifiedImageError, OSError):
         raise UploadError(
             "Die Datei konnte nicht als Bild gelesen werden. Erlaubt sind JPG, PNG und WebP."
         )
+    if width_px * height_px > MAX_BILD_PIXEL:
+        raise _zu_viele_pixel()
 
     format_to_content_type = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
     content_type = format_to_content_type.get(real_format or "")
@@ -73,7 +81,8 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
     preview_path = UPLOAD_DIR / f"{upload_id}_preview.png"
     try:
         with Image.open(stored_path) as img:
-            img = img.convert("RGB")
+            # Transparenz behalten, sonst erscheint sie in der Vorschau schwarz
+            img = img.convert("RGBA")
             img.thumbnail(PREVIEW_MAX_SIZE)
             img.save(preview_path, format="PNG")
     except OSError:
@@ -88,6 +97,12 @@ def save_upload(raw_bytes: bytes, declared_content_type: str) -> StoredUpload:
         width_px=width_px,
         height_px=height_px,
         content_type=content_type,
+    )
+
+
+def _zu_viele_pixel() -> UploadError:
+    return UploadError(
+        f"Das Bild ist zu groß. Erlaubt sind höchstens {MAX_BILD_PIXEL // 1_000_000} Millionen Pixel."
     )
 
 
