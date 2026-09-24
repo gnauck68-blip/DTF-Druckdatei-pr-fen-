@@ -19,7 +19,13 @@
     --gut:#0a4a22; --gut-bg:#e2f3e7;
     --achtung:#553800; --achtung-bg:#fff1c9;
     --stopp:#86101a; --stopp-bg:#fde4e4;
+    --feld:#ffffff; --hell:#e6eef7;
   }
+  /* Dunkles Farbschema: Text weiter mit mindestens 7:1 Kontrast */
+  html.dunkel{--bg:#121416; --panel:#1d2227; --ink:#f3f5f7; --muted:#c9d0d6; --line:#7d8790; --feld:#262c32; --hell:#26384d;}
+  html.dunkel button.leise{background:var(--feld); color:#dbe9ff; border-color:#8cb8e8;}
+  html.dunkel button.leise:hover{background:#2d3a48;}
+  html.dunkel .kachel input:checked + span.inhalt::after{color:#dbe9ff;}
   html{font-size:20px;}
   html.gross{font-size:25px;}
   *{box-sizing:border-box}
@@ -70,7 +76,7 @@
     border:.2rem dashed var(--line); border-radius:.75rem; padding:1rem;
     display:grid; grid-template-columns:minmax(0,1fr); gap:.75rem; justify-items:center; text-align:center;
   }
-  .ablage.drueber{border-color:var(--accent); background:#e6eef7;}
+  .ablage.drueber{border-color:var(--accent); background:var(--hell);}
   input[type=file]{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;}
 
   .vorschau{display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-top:1rem;}
@@ -123,7 +129,7 @@
   .feld small{color:var(--muted);}
   .feld input, .feld select{
     min-width:0; width:100%;
-    font:inherit; padding:.5rem .7rem; min-height:3rem; border:.15rem solid var(--line); border-radius:.5rem; background:#fff; color:var(--ink);
+    font:inherit; padding:.5rem .7rem; min-height:3rem; border:.15rem solid var(--line); border-radius:.5rem; background:var(--feld); color:var(--ink);
   }
   .zwei{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap:.75rem;}
   .auswahl{display:grid; gap:.5rem; margin:.5rem 0;}
@@ -160,7 +166,7 @@
   .groesse-zeile{display:flex; align-items:stretch; gap:.5rem; flex-wrap:wrap; margin:.5rem 0;}
   .groesse-zeile button{min-width:3.6rem; font-size:1.6rem; padding:.2rem .8rem;}
   .groesse-zeile input{font:inherit; font-size:1.6rem; font-weight:700; width:7rem; text-align:center; min-height:3.6rem;
-    border:.15rem solid var(--line); border-radius:.6rem; color:var(--ink); background:#fff;}
+    border:.15rem solid var(--line); border-radius:.6rem; color:var(--ink); background:var(--feld);}
   .groesse-zeile .einheit{align-self:center; font-size:1.3rem; font-weight:700;}
   .schnell{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); gap:.5rem; margin:.75rem 0;}
   .schnell button{flex-direction:column; gap:0; min-height:3.6rem; font-size:1rem;}
@@ -168,6 +174,39 @@
   .hoehe{font-size:1.1rem; margin:.25rem 0;}
   .ergebnis-bild{margin-top:1rem;}
   .ergebnis-bild img{max-width:100%; max-height:24rem;}
+  /* Werkzeuge für Fachkräfte */
+  .karo.textil{background-image:none;}
+  .werkzeuge .reihe{display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0;}
+  .werkzeuge .reihe > *{flex:1 1 11rem;}
+  .werkzeuge details{margin-top:.75rem;}
+  .werkzeuge details > summary{font-size:1.05rem;}
+  .werkzeuge .regler output{font-weight:700;}
+  .werkzeuge input[type=color]{min-height:3rem; width:100%; padding:.2rem; border:.15rem solid var(--line); border-radius:.5rem; background:var(--feld);}
+  .farben{display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.5rem 0;}
+  .farben button.farbe{min-width:3.2rem; width:3.2rem; padding:0; background:var(--f); border-color:var(--line);}
+  .farben button.farbe[aria-pressed="true"]{box-shadow:0 0 0 .25rem var(--fokus);}
+  #histogramm{width:100%; max-width:32rem; height:5rem; background:var(--feld); border:.1rem solid var(--line); border-radius:.4rem; display:block;}
+  .bogen-motiv{display:grid; grid-template-columns:4rem minmax(0,1fr); gap:.5rem .75rem; align-items:center; border:.1rem solid var(--line); border-radius:.5rem; padding:.5rem; margin:.5rem 0;}
+  .bogen-motiv img{max-width:4rem; max-height:4rem;}
+  .bogen-motiv .zwei{grid-column:1 / -1;}
+  #bogen-vorschau{max-width:100%; touch-action:none; cursor:move; display:block; margin-top:.75rem;}
+  dialog{max-width:min(56rem, calc(100vw - 1rem)); width:100%; border:.15rem solid var(--line); border-radius:.75rem; background:var(--panel); color:var(--ink); padding:1rem;}
+  dialog::backdrop{background:rgba(0,0,0,.6);}
+  dialog h2{margin-top:0;}
+  .zs-flaeche{display:flex; justify-content:center; background:var(--bg); border:.1rem solid var(--line); border-radius:.5rem; padding:1.5rem; margin:.75rem 0;}
+  .zs-buehne{position:relative; max-width:100%; touch-action:none; user-select:none; -webkit-user-select:none; flex:none; cursor:crosshair;}
+  #zs-leinwand{display:block; width:100%; height:auto; pointer-events:none;}
+  .zs-rahmen{position:absolute; box-sizing:border-box; border:.15rem solid var(--fokus); outline:.1rem solid #000; cursor:move;}
+  .zs-griff{position:absolute; width:2.4rem; height:2.4rem; min-height:0; padding:0; border-radius:.4rem; background:var(--fokus); color:#000; border:.15rem solid #000; font-size:1.1rem;}
+  .zs-griff:hover{background:#ffd54f;}
+  .zs-griff.nw{left:0; top:0; transform:translate(-50%,-50%); cursor:nwse-resize;}
+  .zs-griff.ne{right:0; top:0; transform:translate(50%,-50%); cursor:nesw-resize;}
+  .zs-griff.sw{left:0; bottom:0; transform:translate(-50%,50%); cursor:nesw-resize;}
+  .zs-griff.se{right:0; bottom:0; transform:translate(50%,50%); cursor:nwse-resize;}
+  .zs-knoepfe{position:sticky; bottom:-1rem; background:var(--panel); padding:.75rem 0; margin-bottom:-1rem; border-top:.1rem solid var(--line);}
+  .feld label{overflow-wrap:anywhere; hyphens:auto;}
+  #detail-flaeche{max-height:70vh; overflow:auto; border:.1rem solid var(--line);}
+  #detail-leinwand{display:block;}
 </style>
 </head>
 <body>
@@ -193,6 +232,7 @@
     <button type="button" class="leise" id="schrift-btn" aria-pressed="false">
       <svg aria-hidden="true"><use href="#i-schrift"/></svg>Große Schrift
     </button>
+    <button type="button" class="leise" id="dunkel-btn" aria-pressed="false">Dunkel</button>
     <button type="button" class="leise vorlesen-btn versteckt" data-lies="hilfe">
       <svg aria-hidden="true"><use href="#i-sprechen"/></svg>Vorlesen
     </button>
@@ -312,6 +352,7 @@
       <a class="knopf gross-knopf" id="speichern-link" href="#" download="texstyle-dtf.png">
         <svg aria-hidden="true"><use href="#i-speichern"/></svg>Datei speichern
       </a>
+      <button type="button" class="leise versteckt" id="ordner-btn">In einen Ordner speichern …</button>
     </div>
     <details class="fach versteckt" id="pruef-details">
       <summary>Genaue Prüfung (für Fachkräfte)</summary>
@@ -327,267 +368,196 @@
     <p class="fach">Die App liefert ein PNG in RGB mit sRGB-Profil, mit durchsichtigem Hintergrund, genau in der gewählten Breite bei 300 dpi. Zu kleine Bilder rechnet sie hoch, glättet die Kanten und schärft leicht nach. Farbumrechnung mit dem Druckerprofil, Rasterung und Weißunterlage macht der RIP des Druckers. Darum rechnet die App keine Farben in CMYK um. Das Bild verlässt dieses Gerät nie.</p>
   </details>
 
+  <!-- Werkzeuge für Fachkräfte: Funktionen aus dem Texstyle DTF Studio -->
+  <details class="fachbereich werkzeuge" id="werkzeuge">
+    <summary>Werkzeuge für Fachkräfte</summary>
+    <p class="fach">Alles hier ist freiwillig. Ohne Änderungen macht die App dieselbe Datei wie oben. Jede Änderung wirkt sofort auf die Vorschau in Schritt 2.</p>
+    <div class="reihe">
+      <button type="button" class="leise" id="rueck-btn" disabled>↶ Rückgängig</button>
+      <button type="button" class="leise" id="vor-btn" disabled>↷ Wiederholen</button>
+    </div>
+    <div class="reihe">
+      <button type="button" class="leise" id="projekt-speichern-btn" disabled>Projekt speichern</button>
+      <button type="button" class="leise" id="projekt-oeffnen-btn">Projekt öffnen</button>
+      <button type="button" class="leise" id="testmotiv-btn">Testmotiv laden</button>
+      <input type="file" id="projekt-input" tabindex="-1" aria-hidden="true" accept=".texdtf,application/json">
+    </div>
+    <p class="tipp">Ein Projekt (.texdtf) enthält das Bild und alle Einstellungen. Projekte aus dem Texstyle DTF Studio lassen sich auch öffnen.</p>
+    <div id="status-w" aria-live="polite"></div>
+
+    <details>
+      <summary>Bildausschnitt und Spiegeln</summary>
+      <div class="reihe">
+        <button type="button" id="zuschnitt-btn" disabled>Bildausschnitt wählen</button>
+        <button type="button" class="leise" id="original-btn" disabled>Geladenes Original wiederherstellen</button>
+      </div>
+      <p class="tipp">Mit einem Rahmen nur den Teil des Bildes nehmen, der gedruckt werden soll. Die Pixel werden unverändert übernommen. Leere durchsichtige Ränder schneidet die App immer selbst ab.</p>
+      <div class="zwei">
+        <div class="feld"><label for="beschnitt-x">Links und rechts je · %</label><input type="number" id="beschnitt-x" min="0" max="45" step="1" value="0"></div>
+        <div class="feld"><label for="beschnitt-y">Oben und unten je · %</label><input type="number" id="beschnitt-y" min="0" max="45" step="1" value="0"></div>
+      </div>
+      <p class="tipp">Beispiel: 10 % links und 10 % rechts lassen 80 % der Bildbreite übrig.</p>
+      <div class="reihe">
+        <button type="button" class="leise" id="beschnitt-btn" disabled>Beidseitig zuschneiden</button>
+        <button type="button" class="leise" id="spiegeln-btn" aria-pressed="false" disabled>↔ Spiegeln</button>
+      </div>
+    </details>
+
+    <details>
+      <summary>Freistellen und Kanten</summary>
+      <div class="feld">
+        <label for="verfahren">Verfahren</label>
+        <select id="verfahren">
+          <option value="rand">Am Rand zusammenhängend (Standard)</option>
+          <option value="ueberall">Überall im Bild, auch Buchstaben-Innenräume</option>
+          <option value="schrift">Einfarbige Schrift, saubere JPG-Kanten</option>
+        </select>
+        <small>„Überall“ entfernt auch gewollte Flächen in der Hintergrundfarbe, zum Beispiel weiße Details.</small>
+      </div>
+      <div class="feld"><label for="hg-farbe">Hintergrundfarbe</label><input type="color" id="hg-farbe" value="#ffffff"></div>
+      <div class="feld"><label for="textil-farbe">Textilfarbe</label><input type="color" id="textil-farbe" value="#172126"></div>
+      <p class="tipp">Die Hintergrundfarbe kannst du auch durch Antippen in der Vorschau von Schritt 2 wählen.</p>
+      <div class="regler"><label for="weich">Weicher Übergang <output id="weich-aus">10</output></label><input type="range" id="weich" min="0" max="80" value="10"></div>
+      <button type="button" class="leise" id="schrift-preset-btn">Kleine JPG-Schrift verbessern</button>
+      <div id="schrift-regler" class="versteckt">
+        <p class="tipp">Für einfarbige Schrift auf gleichmäßigem Hintergrund. Alle Motivfarben werden durch die Schriftfarbe ersetzt. Nicht für mehrfarbige Logos.</p>
+        <div class="feld"><label for="schrift-farbe">Schriftfarbe</label><input type="color" id="schrift-farbe" value="#000000"></div>
+        <div class="regler"><label for="schrift-rauschen">JPG-Störungen reduzieren <output id="schrift-rauschen-aus">4</output></label><input type="range" id="schrift-rauschen" min="0" max="20" value="4"></div>
+        <div class="regler"><label for="schrift-kontrast">Kantenkontrast <output id="schrift-kontrast-aus">20</output></label><input type="range" id="schrift-kontrast" min="0" max="100" value="20"></div>
+      </div>
+      <div class="auswahl">
+        <label><input type="checkbox" id="saeume"><span><b>Farbsäume bereinigen</b>: entfernt den Schimmer der alten Hintergrundfarbe an halb durchsichtigen Kanten.</span></label>
+        <label><input type="checkbox" id="aussparen"><span><b>Textilfarbe im Motiv aussparen</b>: Stellen in Textilfarbe werden nicht bedruckt, das Textil scheint durch.</span></label>
+      </div>
+      <div class="regler"><label for="einziehen">Kanten einziehen in der Druckdatei · Pixel <output id="einziehen-aus">0</output></label><input type="range" id="einziehen" min="0" max="2" step="1" value="0"></div>
+    </details>
+
+    <details>
+      <summary>Tonwerte und Farbe</summary>
+      <canvas id="histogramm" width="256" height="64" aria-label="Helligkeitsverteilung des Bildes"></canvas>
+      <div class="reihe">
+        <button type="button" class="leise" id="pip-schwarz-btn" disabled>Schwarzpunkt im Bild antippen</button>
+        <button type="button" class="leise" id="pip-weiss-btn" disabled>Weißpunkt im Bild antippen</button>
+      </div>
+      <div class="regler"><label for="schwarz">Schwarzpunkt <output id="schwarz-aus">0</output></label><input type="range" id="schwarz" min="0" max="254" value="0"></div>
+      <div class="regler"><label for="weiss">Weißpunkt <output id="weiss-aus">255</output></label><input type="range" id="weiss" min="1" max="255" value="255"></div>
+      <div class="regler"><label for="gamma">Gamma <output id="gamma-aus">1</output></label><input type="range" id="gamma" min="0.2" max="3" step="0.05" value="1"></div>
+      <div class="regler"><label for="farbton">Farbton <output id="farbton-aus">0</output></label><input type="range" id="farbton" min="-180" max="180" value="0"></div>
+      <div class="regler"><label for="saettigung">Sättigung <output id="saettigung-aus">0</output></label><input type="range" id="saettigung" min="-100" max="100" value="0"></div>
+      <div class="regler"><label for="helligkeit">Helligkeit <output id="helligkeit-aus">0</output></label><input type="range" id="helligkeit" min="-100" max="100" value="0"></div>
+      <button type="button" class="leise" id="ton-zurueck-btn">Tonwerte zurücksetzen</button>
+    </details>
+
+    <details>
+      <summary>Ansicht und Textilvorschau</summary>
+      <div class="reihe" role="group" aria-label="Ansicht in Schritt 2">
+        <button type="button" class="leise ansicht-btn" data-ansicht="ergebnis" aria-pressed="true">Ergebnis</button>
+        <button type="button" class="leise ansicht-btn" data-ansicht="original" aria-pressed="false">Original</button>
+        <button type="button" class="leise ansicht-btn" data-ansicht="vergleich" aria-pressed="false">Vergleich</button>
+        <button type="button" class="leise ansicht-btn" data-ansicht="maske" aria-pressed="false">Weißmaske</button>
+      </div>
+      <p class="tipp">Vorschau auf Textil:</p>
+      <div class="farben" role="group" aria-label="Textilfarbe der Vorschau">
+        <button type="button" class="leise" id="karo-btn" aria-pressed="true">Karomuster</button>
+        <button type="button" class="farbe textil-btn" data-textil="#ffffff" style="--f:#ffffff" aria-pressed="false" aria-label="Weißes Textil"></button>
+        <button type="button" class="farbe textil-btn" data-textil="#172126" style="--f:#172126" aria-pressed="false" aria-label="Dunkles Textil"></button>
+        <button type="button" class="farbe textil-btn" data-textil="#213e67" style="--f:#213e67" aria-pressed="false" aria-label="Blaues Textil"></button>
+        <button type="button" class="farbe textil-btn" data-textil="#b34b36" style="--f:#b34b36" aria-pressed="false" aria-label="Rotes Textil"></button>
+        <button type="button" class="leise" id="textil-eigen-btn">Textilfarbe von oben</button>
+      </div>
+      <p class="tipp">Die Textilvorschau wird nicht mitgedruckt und ist kein verbindlicher Farbnachweis.</p>
+    </details>
+
+    <details>
+      <summary>Druckdatei: Auflösung, Raster, Formate</summary>
+      <div class="zwei">
+        <div class="feld"><label for="dpi">Auflösung</label><select id="dpi"><option value="300">300 dpi (Standard)</option><option value="600">600 dpi</option></select></div>
+        <div class="feld"><label for="format">Dateiformat</label><select id="format"><option value="png">PNG für den RIP (Standard)</option><option value="pdf">PDF: Bild in Druckgröße</option></select></div>
+      </div>
+      <div class="feld"><label for="hoehe-cm">Stattdessen Höhe vorgeben · cm</label><input type="text" id="hoehe-cm" inputmode="decimal" disabled><small>Die Breite rechnet die App dann aus. Das Motiv wird nie verzerrt.</small></div>
+      <div class="auswahl">
+        <label><input type="checkbox" id="lanczos"><span><b>Lanczos-3 zum Umrechnen</b>: schärfer beim Vergrößern, braucht mehr Zeit. Bis 24 Millionen Pixel.</span></label>
+        <label><input type="checkbox" id="raster"><span><b>Halbtransparenz in Raster umwandeln</b>: macht aus weichen Stellen Punkte. Nur, wenn der RIP das nicht selbst macht; ersetzt „Kanten glätten“.</span></label>
+      </div>
+      <div id="raster-regler" class="versteckt">
+        <div class="regler"><label for="lpi">Rasterweite · LPI <output id="lpi-aus">35</output></label><input type="range" id="lpi" min="15" max="55" value="35"></div>
+        <div class="regler"><label for="winkel">Winkel · Grad <output id="winkel-aus">22.5</output></label><input type="range" id="winkel" min="0" max="90" step="0.5" value="22.5"></div>
+        <div class="feld"><label for="form">Rasterform</label><select id="form"><option value="circle">Kreis</option><option value="ellipse">Ellipse</option><option value="diamond">Raute</option><option value="square">Quadrat</option><option value="line">Linie</option></select></div>
+      </div>
+      <h3>Nach „Druck-Datei machen“</h3>
+      <div class="reihe">
+        <button type="button" class="leise" id="detail-btn" disabled>In 100 % ansehen</button>
+        <button type="button" class="leise" id="maske-btn" disabled>Weißmaske als PNG speichern</button>
+      </div>
+      <div class="regler"><label for="basis-einziehen">Weißmaske einziehen · Pixel <output id="basis-einziehen-aus">1</output></label><input type="range" id="basis-einziehen" min="0" max="2" step="1" value="1"></div>
+      <h3>Vektorisieren (SVG)</h3>
+      <p class="tipp">Einfarbige Konturen für einfache Logos und Schrift. Fotos und mehrfarbige Logos werden nicht originalgetreu übernommen.</p>
+      <div class="zwei">
+        <div class="regler"><label for="svg-schwelle">Helligkeitsgrenze <output id="svg-schwelle-aus">160</output></label><input type="range" id="svg-schwelle" min="0" max="255" value="160"></div>
+        <div class="feld"><label for="svg-farbe">Konturfarbe</label><input type="color" id="svg-farbe" value="#000000"></div>
+      </div>
+      <button type="button" class="leise" id="svg-btn" disabled>SVG-Konturen speichern</button>
+    </details>
+
+    <details>
+      <summary>Sammelbogen: mehrere Motive auf einen Bogen</summary>
+      <p class="tipp">Fügt das aktuelle Motiv mit seinen Einstellungen hinzu. Breite und Menge kannst du pro Motiv ändern.</p>
+      <button type="button" class="leise" id="bogen-dazu-btn" disabled>Aktuelles Motiv hinzufügen</button>
+      <div id="bogen-liste"></div>
+      <div class="zwei">
+        <div class="feld"><label for="bogen-breite">Bogenbreite · cm</label><input type="number" id="bogen-breite" min="1" max="120" step="0.5" value="42"></div>
+        <div class="feld"><label for="bogen-abstand">Abstand · mm</label><input type="number" id="bogen-abstand" min="0" max="50" step="1" value="5"></div>
+      </div>
+      <div class="auswahl"><label><input type="checkbox" id="bogen-drehen" checked><span>Bei Bedarf um 90° drehen</span></label></div>
+      <button type="button" id="bogen-ordnen-btn" disabled>Automatisch anordnen</button>
+      <p class="tipp" id="bogen-info"></p>
+      <canvas id="bogen-vorschau" class="versteckt" aria-label="Anordnung auf dem Bogen. Motive lassen sich mit Finger oder Maus verschieben."></canvas>
+      <div class="reihe">
+        <button type="button" class="leise" id="bogen-png-btn" disabled>Bogen als PNG speichern</button>
+        <button type="button" class="leise" id="bogen-pdf-btn" disabled>Bogen als PDF speichern</button>
+      </div>
+    </details>
+  </details>
+
 </main>
 
+<dialog id="zuschnitt-dialog" aria-labelledby="zs-titel">
+  <h2 id="zs-titel">Bildausschnitt wählen</h2>
+  <p>Zieh einen Rahmen um das Motiv. In der Mitte verschieben, an den Ecken die Größe ändern. Mit den Pfeiltasten geht es auch.</p>
+  <div class="reihe">
+    <button type="button" class="leise" id="zs-neu-btn" aria-pressed="true">Neuen Rahmen ziehen</button>
+    <button type="button" class="leise" id="zs-ganz-btn">Ganzes Bild</button>
+  </div>
+  <div class="zs-flaeche"><div class="zs-buehne" id="zs-buehne"><canvas id="zs-leinwand" aria-label="Bild zum Zuschneiden"></canvas>
+    <div class="zs-rahmen" id="zs-rahmen" tabindex="0" role="group" aria-label="Auswahlrahmen. Pfeiltasten verschieben, mit Umschalttaste in größeren Schritten.">
+      <button type="button" class="zs-griff nw" data-ecke="nw" aria-label="Ecke oben links">↖</button><button type="button" class="zs-griff ne" data-ecke="ne" aria-label="Ecke oben rechts">↗</button><button type="button" class="zs-griff sw" data-ecke="sw" aria-label="Ecke unten links">↙</button><button type="button" class="zs-griff se" data-ecke="se" aria-label="Ecke unten rechts">↘</button>
+    </div></div></div>
+  <p id="zs-info" aria-live="polite"></p>
+  <div class="feld"><label for="zs-groesse">Druckbreite nach dem Zuschnitt</label><select id="zs-groesse"><option value="proportional">Proportional verkleinern</option><option value="breite">Bisherige Breite behalten</option></select></div>
+  <details><summary>Auswahl genau einstellen (Pixel)</summary>
+    <div class="zwei">
+      <div class="feld"><label for="zs-x">Abstand links</label><input type="number" id="zs-x" min="0" step="1"></div>
+      <div class="feld"><label for="zs-y">Abstand oben</label><input type="number" id="zs-y" min="0" step="1"></div>
+      <div class="feld"><label for="zs-b">Breite</label><input type="number" id="zs-b" min="1" step="1"></div>
+      <div class="feld"><label for="zs-h">Höhe</label><input type="number" id="zs-h" min="1" step="1"></div>
+    </div>
+  </details>
+  <div class="reihe zs-knoepfe">
+    <button type="button" class="leise" id="zs-abbrechen-btn">Abbrechen</button>
+    <button type="button" id="zs-ok-btn">Ausschnitt übernehmen</button>
+  </div>
+</dialog>
+
+<dialog id="detail-dialog" aria-labelledby="detail-titel">
+  <h2 id="detail-titel">Druck-Datei in 100 %</h2>
+  <p id="detail-info"></p>
+  <div id="detail-flaeche" class="karo"><canvas id="detail-leinwand" width="1" height="1" aria-label="Druck-Datei, ein Bildpixel pro Bildschirmpixel"></canvas></div>
+  <div class="reihe"><button type="button" id="detail-zu-btn">Schließen</button></div>
+</dialog>
+
 <script src="imagetracer.js"></script>
+<script src="studio-engine.js"></script>
 <script src="rip.js"></script>
-<script>
-(function () {
-  'use strict';
-  const $ = (id) => document.getElementById(id);
-  const R = window.TexStyleRip;
-  // original: geladenes Bild; motiv: nach Hintergrund und Zuschnitt; hg: Hintergrund-Einstellung
-  const zustand = { original: null, motiv: null, hg: { entfernen: false, farbe: null, toleranz: 30, innenflaechen: false }, dateiUrl: null };
-
-  // ---------- Große Schrift (wird im Browser gemerkt, falls erlaubt) ----------
-  const schriftBtn = $('schrift-btn');
-  function setzeSchrift(an) {
-    document.documentElement.classList.toggle('gross', an);
-    schriftBtn.setAttribute('aria-pressed', an ? 'true' : 'false');
-  }
-  try { setzeSchrift(localStorage.getItem('texstyle-schrift') === 'gross'); } catch (e) { /* ohne Speicher */ }
-  schriftBtn.addEventListener('click', () => {
-    const an = !document.documentElement.classList.contains('gross');
-    setzeSchrift(an);
-    try { localStorage.setItem('texstyle-schrift', an ? 'gross' : 'normal'); } catch (e) { /* ohne Speicher */ }
-  });
-
-  // ---------- Vorlesen: nur Stimmen, die auf dem Gerät laufen (Datenschutz, offline) ----------
-  const sprache = window.speechSynthesis;
-  function deutscheStimme() {
-    if (!sprache) return null;
-    return sprache.getVoices().find((v) => v.localService && v.lang && v.lang.toLowerCase().startsWith('de')) || null;
-  }
-  function vorlesenPruefen() {
-    const da = !!deutscheStimme();
-    document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
-  }
-  if (sprache) { vorlesenPruefen(); sprache.addEventListener('voiceschanged', vorlesenPruefen); }
-  document.querySelectorAll('.vorlesen-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const stimme = deutscheStimme();
-      const text = btn.dataset.lies.split(' ').map((id) => ($(id) ? $(id).innerText : '')).join(' ').replace(/\s+/g, ' ').trim();
-      if (!stimme || !text) return;
-      sprache.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.voice = stimme; u.lang = stimme.lang; u.rate = 0.9;
-      sprache.speak(u);
-    });
-  });
-
-  // ---------- Statusanzeige: Form + Wort + Farbe ----------
-  const STATUS = {
-    gruen: { symbol: 'i-gut', wort: 'Gut' }, gelb: { symbol: 'i-achtung', wort: 'Achtung' },
-    rot: { symbol: 'i-stopp', wort: 'Stopp' }, warten: { symbol: 'i-warten', wort: 'Bitte warten' },
-  };
-  function zeigeStatus(ziel, art, satz, fehler) {
-    const s = STATUS[art];
-    const box = document.createElement('div');
-    box.className = 'status ' + art;
-    if (fehler) box.setAttribute('role', 'alert');
-    box.innerHTML = '<svg aria-hidden="true"' + (art === 'warten' ? ' class="dreht"' : '') + '><use href="#' + s.symbol + '"/></svg><div><b></b><span></span></div>';
-    box.querySelector('b').textContent = s.wort + '.';
-    box.querySelector('span').textContent = satz;
-    ziel.replaceChildren(box);
-  }
-  function leere(ziel) { ziel.replaceChildren(); }
-  function fehlerSatz(einfach, fehler) {
-    if (fehler instanceof R.RipFehler) return fehler.message;
-    return einfach + (fehler && fehler.message ? ' Hinweis für die Fachkraft: ' + fehler.message : '');
-  }
-  const kurzWarten = () => new Promise((ok) => setTimeout(ok, 30));
-
-  // ---------- Schritt 1: Bild ----------
-  const dateiInput = $('datei-input');
-  const ablage = $('ablage');
-  $('bild-btn').addEventListener('click', () => dateiInput.click());
-  dateiInput.addEventListener('change', () => { if (dateiInput.files.length) laden(dateiInput.files[0]); dateiInput.value = ''; });
-  ['dragenter', 'dragover'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.add('drueber'); }));
-  ['dragleave', 'drop'].forEach((ev) => ablage.addEventListener(ev, (e) => { e.preventDefault(); ablage.classList.remove('drueber'); }));
-  ablage.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) laden(e.dataTransfer.files[0]); });
-
-  async function laden(datei) {
-    zustand.original = null; zustand.motiv = null;
-    freigeben(); ergebnisZuruecksetzen(); leere($('status-2')); leere($('status-3'));
-    zeigeStatus($('status-1'), 'warten', 'Das Bild wird geladen.');
-    await kurzWarten();
-    try {
-      zustand.original = await R.ladeBild(datei);
-    } catch (e) {
-      $('vorschau').classList.add('versteckt');
-      zeigeStatus($('status-1'), 'rot', fehlerSatz('Das Bild geht nicht. Nimm ein anderes Bild (JPG, PNG oder WebP).', e), true);
-      return;
-    }
-    const o = zustand.original;
-    zeigeStatus($('status-1'), 'gruen', 'Das Bild ist da (' + o.breite + ' × ' + o.hoehe + ' Pixel). Weiter mit Schritt 2.');
-    // Hintergrund automatisch erkennen und bei einfarbigem Hintergrund gleich entfernen
-    const erkannt = R.erkenneHintergrund(o.leinwand);
-    zustand.hg = { entfernen: erkannt.art === 'einfarbig', farbe: erkannt.farbe, toleranz: 30, innenflaechen: false, art: erkannt.art };
-    $('toleranz').value = 30; $('innen').checked = false;
-    hintergrundAnwenden();
-    // Sinnvolle Startbreite: so breit, wie das Motiv bei 300 dpi scharf ist (höchstens 30 cm)
-    if (zustand.motiv) setzeBreite(Math.max(1, Math.min(30, Math.floor(zustand.motiv.breite / 300 * 2.54 * 2) / 2)));
-    freigeben();
-  }
-
-  // ---------- Schritt 2: Hintergrund ----------
-  function farbName(f) { return 'RGB ' + f.join(', '); }
-  function hintergrundAnwenden() {
-    const o = zustand.original;
-    if (!o) return;
-    ergebnisZuruecksetzen();
-    try {
-      zustand.motiv = R.bereiteVor(o.leinwand, zustand.hg);
-    } catch (e) {
-      zeigeStatus($('status-2'), 'rot', fehlerSatz('Das hat nicht geklappt.', e), true);
-      return;
-    }
-    const m = zustand.motiv, hg = zustand.hg;
-    $('vorschau-bild').src = R.vorschau(m.leinwand, 700);
-    $('vorschau').classList.remove('versteckt');
-    $('bild-info').textContent = 'Motiv: ' + m.breite + ' × ' + m.hoehe + ' Pixel' + (m.randEntfernt ? ' (leerer Rand abgeschnitten)' : '');
-    $('hg-btn').setAttribute('aria-pressed', hg.entfernen ? 'true' : 'false');
-    $('hg-btn-text').textContent = hg.entfernen ? 'Hintergrund wird entfernt (antippen = behalten)' : 'Hintergrund entfernen';
-    if (hg.entfernen && m.hintergrundEntfernt) {
-      zeigeStatus($('status-2'), 'gruen', 'Der Hintergrund ist weg. Wenn noch Reste da sind: Regler nach rechts. Wenn zu viel fehlt: Regler nach links.' +
-        (hg.innenflaechen ? '' : ' Sind in Buchstaben noch Flächen in der alten Farbe? Dann Häkchen bei „Auch Innenflächen entfernen“.'));
-    } else if (hg.entfernen) {
-      zeigeStatus($('status-2'), 'gelb', 'Diese Farbe liegt nicht am Bildrand. Tipp ins Bild auf die Farbe, die weg soll.');
-    } else if (hg.art === 'durchsichtig' || m.transparent) {
-      zeigeStatus($('status-2'), 'gruen', 'Das Bild hat schon einen durchsichtigen Hintergrund.');
-    } else if (hg.art === 'keiner' && !hg.farbe) {
-      zeigeStatus($('status-2'), 'gelb', 'Kein einfarbiger Hintergrund gefunden. Tipp ins Bild auf die Farbe, die weg soll. Sonst wird das ganze Rechteck gedruckt.');
-    } else {
-      zeigeStatus($('status-2'), 'gelb', 'Der Hintergrund bleibt. Dann wird das ganze Rechteck gedruckt.');
-    }
-    groessePruefen();
-  }
-  $('hg-btn').addEventListener('click', () => {
-    if (!zustand.hg.farbe) { zeigeStatus($('status-2'), 'gelb', 'Tipp zuerst ins Bild auf die Farbe, die weg soll.'); return; }
-    zustand.hg.entfernen = !zustand.hg.entfernen;
-    hintergrundAnwenden();
-  });
-  let reglerPause = null;
-  $('toleranz').addEventListener('input', () => {
-    zustand.hg.toleranz = Number($('toleranz').value);
-    clearTimeout(reglerPause); reglerPause = setTimeout(hintergrundAnwenden, 200);
-  });
-  $('innen').addEventListener('change', () => { zustand.hg.innenflaechen = $('innen').checked; hintergrundAnwenden(); });
-  // Farbe antippen: Punkt in der Vorschau über die Lage des Motivs (versatz) auf das
-  // Originalbild umrechnen und dort die Farbe messen.
-  $('vorschau-bild').addEventListener('click', (e) => {
-    if (!zustand.original || !zustand.motiv) return;
-    const bildEl = e.currentTarget, rahmen = bildEl.getBoundingClientRect();
-    const o = zustand.original, m = zustand.motiv;
-    const fx = (e.clientX - rahmen.left) / rahmen.width, fy = (e.clientY - rahmen.top) / rahmen.height;
-    const x = m.versatz.x + fx * m.breite, y = m.versatz.y + fy * m.hoehe;
-    zustand.hg.farbe = R.farbeAn(o.leinwand, x, y);
-    zustand.hg.entfernen = true;
-    hintergrundAnwenden();
-  });
-  // ---------- Schritt 3: Größe ----------
-  function formatCm(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
-  function breiteCm() { return Number(String($('breite').value).replace(',', '.')); }
-  function setzeBreite(v) { $('breite').value = formatCm(Math.max(1, Math.min(300, v))); groessePruefen(); }
-  $('breite-minus').addEventListener('click', () => setzeBreite(Math.floor(breiteCm() - 0.001) || 1));
-  $('breite-plus').addEventListener('click', () => setzeBreite(Math.ceil(breiteCm() + 0.001)));
-  document.querySelectorAll('.schnell-btn').forEach((b) => b.addEventListener('click', () => setzeBreite(Number(b.dataset.cm))));
-  let tippPause = null;
-  $('breite').addEventListener('input', () => { clearTimeout(tippPause); tippPause = setTimeout(groessePruefen, 400); });
-
-  const SATZ = {
-    gruen: 'Das Bild ist scharf genug für diese Größe.',
-    gelb: 'Das Bild ist eigentlich zu klein für diese Größe. Die App rechnet es hoch und glättet es.',
-  };
-  function groessePruefen() {
-    ergebnisZuruecksetzen();
-    if (!zustand.motiv) return;
-    let e;
-    try { e = R.pruefeBreite(zustand.motiv, breiteCm()); }
-    catch (f) { $('hoehe').textContent = ''; zeigeStatus($('status-3'), 'rot', fehlerSatz('Die Größe geht so nicht.', f), true); freigeben(); return; }
-    const g = e.groesse, a = e.aufloesung;
-    $('hoehe').textContent = 'Höhe: ' + formatCm(g.hoeheMm / 10) + ' cm';
-    let satz = SATZ[a.ampel] + ' (' + Math.round(a.dpi) + ' dpi)';
-    if (a.dpi < 150) satz = 'Das Bild ist viel zu klein für diese Größe (' + Math.round(a.dpi) + ' dpi). Die App rechnet es hoch, es kann aber weich wirken. Besser kleiner drucken.';
-    zeigeStatus($('status-3'), a.ampel, satz);
-    freigeben();
-  }
-
-  // ---------- Schritt 4: Druck-Datei ----------
-  const machenBtn = $('machen-btn');
-  function ergebnisZuruecksetzen() {
-    if (zustand.dateiUrl) { URL.revokeObjectURL(zustand.dateiUrl); zustand.dateiUrl = null; }
-    leere($('status-4'));
-    $('speichern-bereich').classList.add('versteckt');
-    $('pruef-details').classList.add('versteckt');
-    $('ergebnis-bild').classList.add('versteckt');
-  }
-  ['kanten', 'schaerfen', 'logo'].forEach((id) => $(id).addEventListener('change', ergebnisZuruecksetzen));
-  function freigeben() {
-    const bild = !!zustand.motiv;
-    let groesseOk = false;
-    if (bild) { try { R.pruefeBreite(zustand.motiv, breiteCm()); groesseOk = true; } catch (e) { groesseOk = false; } }
-    $('schritt-2').classList.toggle('aus', !bild);
-    $('schritt-3').classList.toggle('aus', !bild);
-    $('schritt-4').classList.toggle('aus', !groesseOk);
-    ['hg-btn', 'toleranz', 'innen', 'breite', 'breite-minus', 'breite-plus'].forEach((id) => { $(id).disabled = !bild; });
-    document.querySelectorAll('.schnell-btn').forEach((b) => { b.disabled = !bild; });
-    machenBtn.disabled = !groesseOk;
-  }
-
-  const EINFACH = {
-    hintergrund: 'Das Bild hat keinen durchsichtigen Hintergrund. Das ganze Rechteck wird gedruckt.',
-    halbtransparenz: 'Das Bild hat weiche Kanten.',
-  };
-  machenBtn.addEventListener('click', async () => {
-    ergebnisZuruecksetzen();
-    machenBtn.disabled = true;
-    zeigeStatus($('status-4'), 'warten', 'Die Druck-Datei wird gemacht. Bei großen Drucken kann das eine Minute dauern.');
-    await kurzWarten();
-    let daten;
-    try {
-      daten = await R.erzeugeRipDatei(zustand.motiv, breiteCm(), {
-        kantenGlaetten: $('kanten').checked, schaerfen: $('schaerfen').checked, logoGlaetten: $('logo').checked,
-      });
-    } catch (fehler) {
-      machenBtn.disabled = false;
-      zeigeStatus($('status-4'), 'rot', fehlerSatz('Das hat nicht geklappt. Bitte hol eine Fachkraft.', fehler), true);
-      return;
-    }
-    machenBtn.disabled = false;
-    const p = daten.bericht;
-    const liste = $('pruef-liste');
-    liste.replaceChildren();
-    p.punkte.forEach((punkt) => {
-      const li = document.createElement('li');
-      const z = document.createElement('span'); z.className = 'zeichen';
-      z.textContent = { gruen: '✓ Gut', gelb: '! Achtung', rot: '✗ Stopp' }[punkt.ampel];
-      const t = document.createElement('span'); t.textContent = punkt.label + ': ' + punkt.hinweis;
-      li.append(z, t); liste.appendChild(li);
-    });
-    $('pruef-details').classList.remove('versteckt');
-    $('ergebnis-img').src = daten.vorschauUrl;
-    $('ergebnis-bild').classList.remove('versteckt');
-
-    const cm = (mm) => formatCm(mm / 10);
-    const groesse = cm(daten.groesse.breiteMm) + ' × ' + cm(daten.groesse.hoeheMm) + ' cm';
-    zustand.dateiUrl = URL.createObjectURL(daten.blob);
-    $('speichern-link').href = zustand.dateiUrl;
-    $('speichern-link').download = 'texstyle-dtf-' + cm(daten.groesse.breiteMm).replace(',', '_') + 'cm.png';
-    $('speichern-bereich').classList.remove('versteckt');
-    const hinweise = p.punkte.filter((x) => x.ampel === 'gelb' && EINFACH[x.schluessel]).map((x) => EINFACH[x.schluessel]).join(' ');
-    zeigeStatus($('status-4'), p.gesamt_ampel === 'gruen' ? 'gruen' : 'gelb',
-      'Die Datei für den Drucker ist fertig: ' + groesse + ', 300 dpi. ' + (hinweise ? hinweise + ' ' : '') + 'Drück auf „Datei speichern“.');
-    $('speichern-link').focus();
-  });
-
-  freigeben();
-
-  // Offline-Betrieb und „Zum Startbildschirm hinzufügen“ (Android): Service Worker
-  if ('serviceWorker' in navigator && window.isSecureContext) {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* ohne Offline-Speicher weiter nutzbar */ });
-  }
-})();
-</script>
+<script src="app.js"></script>
 </body>
 </html>

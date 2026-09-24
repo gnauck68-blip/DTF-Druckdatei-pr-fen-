@@ -149,6 +149,51 @@ byte-gleiches sRGB-Profil (`texstyle_dtf/srgb.icc`), harte Kanten,
 deckungsgleiche Motivfläche. Der Test braucht Node.js mit Playwright und
 wird sonst übersprungen.
 
+## Werkzeuge für Fachkräfte (Funktionen aus dem Texstyle DTF Studio)
+
+Unter den vier Schritten steht der aufklappbare Bereich „Werkzeuge für
+Fachkräfte“. Die vier Schritte bleiben der Standardweg; ohne Eingriff im
+Bereich liefert die App dieselbe RIP-Datei wie vorher. Die Rechenfunktionen
+kommen aus dem Studio (`studio/dist/engine.mjs`, `resample.mjs`,
+`crop-geometry.mjs`). `node scripts/studio-engine-bauen.mjs` baut daraus
+`texstyle_dtf/static/studio-engine.js`; ein Test meldet, wenn die Datei nicht
+mehr zum Studio passt.
+
+- **Rückgängig / Wiederholen** für Zuschnitt, Hintergrund, Größe und alle
+  Einstellungen (nur im Arbeitsspeicher, höchstens 40 Schritte).
+- **Projekt speichern/öffnen** (`.texdtf`): Bild, Einstellungen und
+  Sammelbogen in einer Datei. Projekte aus dem Studio lassen sich öffnen.
+  **Testmotiv** zum Ausprobieren.
+- **Bildausschnitt wählen** mit Rahmen (ziehen, Ecken, Pfeiltasten,
+  Pixelwerte), beidseitiger Beschnitt in Prozent, Original wiederherstellen,
+  **Spiegeln**.
+- **Freistellen**: Verfahren „am Rand zusammenhängend“ (Standard wie
+  bisher), „überall im Bild“ (auch Innenräume, mit weichem Übergang) und
+  „einfarbige Schrift“ (saubere JPG-Kanten, Schriftfarbe, Störungen,
+  Kantenkontrast); Hintergrundfarbe per Farbfeld, Farbsäume bereinigen,
+  Textilfarbe im Motiv aussparen, Kanten einziehen (0–2 Pixel).
+- **Tonwerte und Farbe**: Histogramm, Schwarz- und Weißpunkt (auch per
+  Antippen), Gamma, Farbton, Sättigung, Helligkeit.
+- **Ansicht**: Ergebnis, Original, Vergleich, Weißmaske; Vorschau auf
+  Textilfarbe statt Karomuster.
+- **Druckdatei**: 300 oder 600 dpi, Höhe statt Breite vorgeben, Lanczos-3
+  (im Worker, bis 24 Millionen Pixel), Halbtonraster (LPI, Winkel, Form),
+  PNG oder PDF; danach 100-%-Ansicht, Weißmaske als PNG, einfarbige
+  SVG-Konturen.
+- **Sammelbogen**: mehrere Motive mit Breite und Menge, automatisch in
+  Reihen angeordnet (bei Bedarf gedreht), mit der Hand verschiebbar,
+  Überlappungsprüfung, Ausgabe als PNG mit sRGB-Profil oder als PDF.
+- **Dunkel**-Schalter oben; „In einen Ordner speichern“, wo der Browser
+  das kann (Chrome/Edge am PC).
+
+Was bei der RIP-Datei bleibt: PNG immer mit sRGB-Profil und der gewählten
+Auflösung (pHYs). Das Halbtonraster ersetzt „Kanten glätten“ und nimmt dem
+RIP die Rasterung ab; nur einschalten, wenn der RIP das nicht selbst macht.
+PDF und Weißmaske tragen kein Farbprofil; für den RIP ist das PNG die
+richtige Datei. Nicht übernommen aus dem Studio: das Offline-Einrichten über
+ChatGPT Sites (die App hat ihren eigenen Offline-Modus) und die Pflicht-
+Häkchen vor dem Download.
+
 ## Texstyle DTF Studio (Ordner `studio/`)
 
 Eine zweite, eigenständige Web-App. Sie wurde mit ChatGPT erstellt und lief
@@ -297,6 +342,9 @@ Die Testsuite deckt alle Kernfunktionen ab: Formate und Auflösungsprüfung,
 CMYK-Konvertierung und Farbauftragsbegrenzung, PDF/X-Aufbau und -Geometrie,
 Preflight-Ampel (inklusive Download-Sperre bei einem 72-dpi-Testbild) und das
 DTF-Modul (Halbtonraster, Weißplatte, Filmrand, Deckungsgleichheit).
+`tests/test_browser.py` und `tests/test_werkzeuge.py` spielen die App in
+Chromium durch (einfacher Weg auf einem nachgebildeten Pixel 7, offline;
+alle Werkzeuge für Fachkräfte mit Prüfung der gespeicherten Dateien).
 
 Für die CMYK-Tests wird automatisch das oben erwähnte Ghostscript-Beispielprofil
 verwendet, falls `TEXSTYLE_ICC_CMYK` nicht gesetzt ist (siehe
