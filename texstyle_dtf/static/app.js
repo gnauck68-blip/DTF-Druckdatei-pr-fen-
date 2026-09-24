@@ -75,8 +75,7 @@
     if (alle.some((v) => v.voiceURI === gemerkt)) stimmeWahl.value = gemerkt;
     const da = alle.length > 0;
     document.querySelectorAll('.vorlesen-btn').forEach((b) => b.classList.toggle('versteckt', !da));
-    // Auswahl nur zeigen, wenn es etwas zu wählen gibt
-    $('stimme-feld').classList.toggle('versteckt', alle.length < 2);
+    $('stimme-feld').classList.toggle('versteckt', !da);
   }
   // Zeilen ohne Satzzeichen bekommen einen Punkt, sonst liest die Stimme sie ohne Pause
   // in einem Atemzug zusammen und betont falsch.
@@ -1040,6 +1039,14 @@
 
   // Offline-Betrieb und „Zum Startbildschirm hinzufügen“ (Android): Service Worker
   if ('serviceWorker' in navigator && window.isSecureContext) {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* ohne Offline-Speicher weiter nutzbar */ });
+    // Neue Fassung installiert: einmal neu laden, damit sie sofort zu sehen ist
+    // (nicht beim allerersten Start, da gab es noch keine alte Fassung, und nicht,
+    // wenn schon ein Bild geladen ist, damit keine Arbeit verloren geht)
+    const hatteAlte = !!navigator.serviceWorker.controller;
+    let neuGeladen = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hatteAlte && !neuGeladen && !zustand.geladen) { neuGeladen = true; window.location.reload(); }
+    });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => { /* ohne Offline-Speicher weiter nutzbar */ });
   }
 })();
