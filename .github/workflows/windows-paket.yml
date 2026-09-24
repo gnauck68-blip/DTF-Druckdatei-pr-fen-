@@ -1,0 +1,38 @@
+# Baut das Offline-Paket für Windows auf einem echten Windows-Rechner, testet es
+# dort mit windows/rauchtest.py und stellt es als Download bereit
+# (Actions > Lauf > Artifacts > "TexStyle-DTF-Windows").
+name: Windows-Paket
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'texstyle_dtf/**'
+      - 'windows/**'
+      - '.github/workflows/windows-paket.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bauen:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Paket bauen und testen
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./windows/baue-paket.ps1 -OhneZip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TexStyle-DTF-Windows
+          path: dist/
+          retention-days: 30

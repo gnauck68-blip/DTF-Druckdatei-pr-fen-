@@ -1,0 +1,8 @@
+# Laufzeit-Bibliotheken für das Windows-Paket, auf die getesteten Versionen festgelegt.
+# uvicorn ohne [standard]: die App braucht dessen Zusatzpakete nicht.
+fastapi==0.141.1
+uvicorn==0.53.0
+pillow==12.3.0
+numpy==2.4.6
+pikepdf==10.13.0.post1
+python-multipart==0.0.32

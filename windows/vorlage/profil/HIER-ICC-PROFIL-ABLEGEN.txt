@@ -1,0 +1,6 @@
+﻿In diesen Ordner gehört das Farbprofil (ICC-Datei, Endung .icc oder .icm)
+der Druckerei bzw. des Druckers. Ohne Farbprofil startet TexStyle DTF nicht.
+
+Das Profil gibt es beim Druckerhersteller, beim Druckdienstleister oder als
+branchenübliches Profil (z. B. "PSO Coated v3" oder "FOGRA39").
+Mehr dazu in LIESMICH.txt.

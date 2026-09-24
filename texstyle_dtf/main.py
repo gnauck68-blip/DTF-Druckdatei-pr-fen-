@@ -11,7 +11,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import socket
+import threading
 import uuid
+import webbrowser
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -330,7 +333,21 @@ def _parse_args() -> argparse.Namespace:
         help="App im lokalen Netzwerk freigeben (Standard: nur dieser Rechner).",
     )
     parser.add_argument("--port", type=int, default=8000, help="Port (Standard: 8000).")
+    parser.add_argument(
+        "--oeffnen",
+        action="store_true",
+        help="Nach dem Start die App im Browser öffnen (für das Windows-Paket).",
+    )
     return parser.parse_args()
+
+
+def _laeuft_schon(port: int) -> bool:
+    """Prüft, ob auf diesem Rechner schon etwas auf dem Port antwortet."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+            return True
+    except OSError:
+        return False
 
 
 def main() -> None:
@@ -338,6 +355,15 @@ def main() -> None:
 
     args = _parse_args()
     host = "0.0.0.0" if args.lan else "127.0.0.1"
+    adresse = f"http://127.0.0.1:{args.port}/"
+
+    if args.oeffnen and _laeuft_schon(args.port):
+        # Zweiter Doppelklick auf die Startdatei: nur das Browserfenster öffnen
+        print("TexStyle DTF läuft schon. Das Browserfenster wird geöffnet.")
+        webbrowser.open(adresse)
+        return
+    if args.oeffnen:
+        threading.Timer(1.5, webbrowser.open, args=(adresse,)).start()
 
     if args.lan:
         print(

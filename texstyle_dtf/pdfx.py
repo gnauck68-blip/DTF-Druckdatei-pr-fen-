@@ -31,6 +31,7 @@ statt geraten:
 """
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -58,10 +59,15 @@ SEITENRAND_PUFFER_MM = 2.0
 def _finde_ghostscript() -> str | None:
     """Sucht das Ghostscript-Kommandozeilenprogramm plattformunabhängig.
 
-    Unter Linux/macOS heißt es "gs", unter Windows meist "gswin64c" (64-Bit)
-    oder "gswin32c" (32-Bit) – ein bloßes "gs" existiert dort in der Regel
-    nicht, auch wenn Ghostscript korrekt installiert ist.
+    Ist TEXSTYLE_GS gesetzt (z. B. vom Windows-Paket auf das mitgelieferte
+    Ghostscript), wird nur dieser Pfad verwendet.
+    Sonst: Unter Linux/macOS heißt es "gs", unter Windows meist "gswin64c"
+    (64-Bit) oder "gswin32c" (32-Bit) – ein bloßes "gs" existiert dort in der
+    Regel nicht, auch wenn Ghostscript korrekt installiert ist.
     """
+    eigener_pfad = os.environ.get("TEXSTYLE_GS", "").strip()
+    if eigener_pfad:
+        return eigener_pfad if os.path.isfile(eigener_pfad) else None
     for kandidat in ("gs", "gswin64c", "gswin32c"):
         pfad = shutil.which(kandidat)
         if pfad is not None:
@@ -300,6 +306,15 @@ def _build_source_pdf(cmyk_image: Image.Image, geo: PageGeometry, title: str, an
     return pdf
 
 
+def _ghostscript_pfad(pfad: str) -> str:
+    """Windows-Pfade mit Schrägstrichen an Ghostscript geben (C:/Ordner/profil.icc).
+
+    Ghostscript versteht unter Windows beide Trennzeichen; Schrägstriche
+    vermeiden Fehler durch Rückstriche in PostScript-Zeichenketten.
+    """
+    return pfad.replace("\\", "/") if os.name == "nt" else pfad
+
+
 def _write_pdfx_def_ps(path: Path, icc_profile_path: str, profile_description: str, title: str) -> None:
     def _ps_escape(text: str) -> str:
         return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
@@ -313,7 +328,7 @@ def _write_pdfx_def_ps(path: Path, icc_profile_path: str, profile_description: s
   /Trapped /False
 /DOCINFO pdfmark
 
-/ICCProfile ({_ps_escape(icc_profile_path)}) def
+/ICCProfile ({_ps_escape(_ghostscript_pfad(icc_profile_path))}) def
 
 [/_objdef {{icc_PDFX}} /type /stream /OBJ pdfmark
 [{{icc_PDFX}} << /N 4 >> /PUT pdfmark
@@ -337,8 +352,9 @@ def _write_pdfx_def_ps(path: Path, icc_profile_path: str, profile_description: s
 def _run_ghostscript(source_pdf: Path, pdfx_def: Path, output_pdf: Path, icc_profile_path: str) -> None:
     if GS_BINARY is None:
         raise GhostscriptNotFoundError(
-            "Ghostscript wurde nicht gefunden (weder \"gs\" noch \"gswin64c\"/\"gswin32c\" im "
-            "Systempfad). Ohne Ghostscript kann keine PDF/X-Datei erzeugt werden."
+            "Ghostscript wurde nicht gefunden (weder über TEXSTYLE_GS noch als \"gs\" bzw. "
+            "\"gswin64c\"/\"gswin32c\" im Systempfad). Ohne Ghostscript kann keine PDF/X-Datei "
+            "erzeugt werden."
         )
 
     cmd = [
@@ -352,6 +368,10 @@ def _run_ghostscript(source_pdf: Path, pdfx_def: Path, output_pdf: Path, icc_pro
         # blockiert Dateizugriffe außerhalb weniger Standardpfade, daher muss
         # der Profilpfad hier ausdrücklich freigegeben werden.
         f"--permit-file-read={icc_profile_path}",
+        # Unter Windows zusätzlich mit Schrägstrichen freigeben: So steht der Pfad
+        # auch in PDFX_def.ps (siehe _ghostscript_pfad), und Ghostscript vergleicht
+        # die Freigabe mit dem Pfad, den das PostScript öffnet.
+        f"--permit-file-read={_ghostscript_pfad(icc_profile_path)}",
         "-sColorConversionStrategy=CMYK",
         "-dProcessColorModel=/DeviceCMYK",
         "-sDEVICE=pdfwrite",

@@ -100,6 +100,28 @@ Ein anderer Port lässt sich mit `--port` wählen (nur im `--lan`-Startmodus):
 python -m texstyle_dtf.main --port 8080
 ```
 
+## Windows: Offline-Paket ohne Installation
+
+Für Werkstatt-PCs mit Windows gibt es ein fertiges Paket, das ohne
+Installation, ohne Administratorrechte und ohne Internet läuft. Es enthält
+Python 3.11, alle Bibliotheken, Ghostscript und die App.
+
+**Paket holen:** GitHub Actions baut es bei jeder Änderung an der App
+automatisch auf einem Windows-Rechner und testet es dort
+(`.github/workflows/windows-paket.yml`). Download: im Repository auf
+„Actions“ > „Windows-Paket“ > letzten grünen Lauf öffnen > unter „Artifacts“
+„TexStyle-DTF-Windows“. Von Hand geht es auf einem Windows-PC mit Internet
+und Python 3.11 per Doppelklick auf `windows\Paket-bauen.bat`.
+
+**Einrichten und benutzen:** steht in `LIESMICH.txt` im Paket. Kurz:
+Ordner auf den PC kopieren, das ICC-Profil in den Ordner `profil` legen,
+„Verknuepfung auf Desktop anlegen.bat“ doppelklicken. Danach startet ein
+Doppelklick auf „TexStyle DTF“ die App und öffnet den Browser.
+
+Die Startdatei setzt `TEXSTYLE_GS` auf das mitgelieferte Ghostscript und
+`TEXSTYLE_ICC_CMYK` auf die erste `.icc`-/`.icm`-Datei im Ordner `profil`.
+Ohne Profil startet die App nicht (kein stiller Fallback, siehe oben).
+
 ## Beispieldurchlauf
 
 1. `TEXSTYLE_ICC_CMYK` setzen (siehe oben) und die App starten.

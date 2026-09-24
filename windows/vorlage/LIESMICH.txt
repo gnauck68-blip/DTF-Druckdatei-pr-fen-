@@ -1,0 +1,65 @@
+﻿TexStyle DTF für Windows
+========================
+
+Dieses Paket läuft ohne Installation und ohne Internet. Alles Nötige ist dabei:
+Python, alle Bibliotheken, Ghostscript und die App selbst.
+
+
+EINRICHTEN (einmal, durch eine Fachkraft)
+-----------------------------------------
+
+1. Den ganzen Ordner "TexStyle-DTF" an einen festen Platz kopieren,
+   zum Beispiel nach  C:\TexStyle-DTF  oder in die "Dokumente".
+   Administratorrechte sind nicht nötig.
+
+2. Das Farbprofil (ICC-Datei, Endung .icc oder .icm) der Druckerei bzw. des
+   Druckers in den Ordner "profil" legen. Liegen dort mehrere, nimmt die App
+   die erste in alphabetischer Reihenfolge. Ohne Farbprofil startet die App
+   nicht, damit nie mit falschen Farben gedruckt wird.
+
+3. Doppelklick auf "Verknuepfung auf Desktop anlegen.bat".
+   Danach liegt auf dem Desktop das Symbol "TexStyle DTF".
+
+
+BENUTZEN
+--------
+
+- Doppelklick auf "TexStyle DTF" (Desktop) oder "TexStyle starten.bat".
+- Ein schwarzes Fenster geht auf, kurz danach der Browser mit der App.
+- Das schwarze Fenster offen lassen, solange die App benutzt wird.
+- Zum Beenden das schwarze Fenster schließen.
+- Nochmal Doppelklick, während die App läuft: Es öffnet sich nur der Browser.
+
+
+WENN ETWAS NICHT GEHT
+---------------------
+
+"STOPP: Es fehlt das Farbprofil"
+    Im Ordner "profil" liegt keine .icc- oder .icm-Datei. Siehe Schritt 2.
+
+Der Browser öffnet sich nicht
+    Im Browser von Hand diese Adresse öffnen:  http://127.0.0.1:8000
+
+Windows fragt nach der Firewall
+    Nicht nötig: Die App ist nur auf diesem Rechner erreichbar.
+    "Abbrechen" ist in Ordnung.
+
+Windows warnt vor der .bat-Datei ("Der Computer wurde durch Windows geschützt")
+    Das passiert bei Dateien aus dem Internet. Auf "Weitere Informationen"
+    und dann "Trotzdem ausführen" klicken. Alternativ vor dem Entpacken:
+    Rechtsklick auf die ZIP-Datei > Eigenschaften > "Zulassen" anhaken.
+
+
+DATEN
+-----
+
+Hochgeladene Bilder und erzeugte Dateien liegen nur auf diesem Rechner in
+programm\app\workdir und werden nach 24 Stunden automatisch gelöscht.
+
+
+LIZENZEN
+--------
+
+Ghostscript (Ordner programm\ghostscript) steht unter der GNU Affero General
+Public License (AGPL) von Artifex Software. Python steht unter der Python
+Software Foundation License. Die Lizenztexte liegen in den jeweiligen Ordnern.
