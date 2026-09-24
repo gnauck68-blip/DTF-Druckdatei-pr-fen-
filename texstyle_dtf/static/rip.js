@@ -1,36 +1,29 @@
 /*
  * TexStyle DTF: Datei für den RIP, komplett im Browser gerechnet.
  *
- * Gleiche Regeln wie texstyle_dtf/rip.py (Python), damit Windows, Android-Tablet
- * und Handy dieselbe Datei liefern:
- *   - PNG in RGB mit eingebettetem sRGB-Profil (byte-gleich zur Python-Version),
- *   - Transparenz bleibt, leerer durchsichtiger Rand wird abgeschnitten,
- *   - exakt in Druckgröße bei 300 dpi (pHYs),
- *   - keine CMYK-Umrechnung, kein Raster, keine Weißplatte: das macht der RIP
- *     mit seinem hinterlegten Druckerprofil.
+ * Ablauf: Bild laden -> Hintergrund entfernen (optional) -> Breite in cm
+ * wählen -> auf 300 dpi hoch- bzw. herunterrechnen, Kanten glätten, bei
+ * Bedarf schärfen oder als Logo glätten -> PNG für den RIP.
+ *
+ * Die Datei ist ein PNG in RGB mit sRGB-Profil (texstyle_dtf/srgb.icc),
+ * durchsichtigem Hintergrund und 300 dpi. Farbumrechnung, Raster und
+ * Weißunterlage macht der RIP mit seinem Druckerprofil.
  * Das Bild verlässt das Gerät nie. Der Browser wendet beim Laden die
- * EXIF-Drehung an, rechnet eingebettete Farbprofile nach sRGB um und verwirft
- * alle Metadaten (GPS, Kamera, Name).
+ * EXIF-Drehung an, rechnet eingebettete Farbprofile nach sRGB um und
+ * verwirft alle Metadaten (GPS, Kamera, Name).
  */
 (function (global) {
   'use strict';
 
   const DPI = 300;
   const MM_PRO_ZOLL = 25.4;
-  const DPI_ROT = 150;               // wie config.DPI_ERROR_THRESHOLD
-  const DPI_GELB = 300;              // wie config.DPI_WARN_THRESHOLD
   const MAX_DATEI_BYTES = 50 * 1024 * 1024;
   const MAX_BILD_PIXEL = 100000000;
   const MAX_AUSGABE_PIXEL = 150000000;
+  const MIN_BREITE_CM = 1;
+  const MAX_BREITE_CM = 300;
   const LEER_ALPHA = 16;             // Alpha bis hier zählt beim Zuschneiden als leer
-  const HALBTRANSPARENZ_HINWEIS = 0.005;
-  const FORMATE = {
-    A6: { breite: 105, hoehe: 148 },
-    A5: { breite: 148, hoehe: 210 },
-    A4: { breite: 210, hoehe: 297 },
-    A3: { breite: 297, hoehe: 420 },
-  };
-  // iCCP-Block mit dem sRGB-Profil aus texstyle_dtf/srgb.icc, genau wie ihn die Python-Version schreibt
+  const MAX_INNENFLAECHE = 0.10;     // größere eingeschlossene Flächen bleiben (gewollte Motivteile)
   const ICCP_SRGB = 'AAABdmlDQ1BJQ0MgUHJvZmlsZQAAeJx1kT1Lw1AUhh+rUr8ddBB16FDFQUEUxFHr4FKk1ApWXdo0aYU2DUmKFFfBxUFwEF38GvwHugquCoKgCCLOjn4tUuK5VmiResPNeXjvfQ8nb8AXzmo5p2EKcqZrR2dDgcX4UsD/QjM9dDBKX0JzrOlIJMy/6/OOOlVvR1Sv/+/VXK0p3dGgrkl4QrNsV1imIbzmWoq3hLu1TCIlfCg8bMuAwldKT5b5WXG6zO+K7Vh0BnyqZyBdxckq1jJ2TnhIOJjLFrTfedSXtOnmwrzUXtn9OESZJUSAJAVWyeIyItWUzGr7Rn98c+TFo8nboogtjjQZ8Q6LWpCuulRDdF2eLEWV+988HWN8rNy9LQSNT573NgD+HShte97XkeeVjqH+ES7Mij8vOU1+iL5d0YIH0LkBZ5cVLbkL55vQ82Al7MSPVC/bZxjwegrtcei6gZblcla/55zcQ2xdftE17O3DoNzvXPkGQtRoKKffvQU=';
 
   class RipFehler extends Error {}
@@ -39,6 +32,21 @@
     const c = document.createElement('canvas');
     c.width = breite; c.height = hoehe;
     return c;
+  }
+  function pixelVon(c) {
+    try { return c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height); }
+    catch (e) { throw new RipFehler('Das Bild ist zu groß für dieses Gerät.'); }
+  }
+  function ausPixeln(img) {
+    const c = leinwand(img.width, img.height);
+    c.getContext('2d').putImageData(img, 0, 0);
+    return c;
+  }
+  // Python rundet halbe Werte zur geraden Zahl; gleich runden, damit Pixelmaße übereinstimmen
+  function pyRound(v) {
+    const f = Math.floor(v), rest = v - f;
+    if (Math.abs(rest - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1;
+    return Math.round(v);
   }
 
   // ---------- Bild laden ----------
@@ -56,23 +64,130 @@
       }
     }
     if (bmp.width * bmp.height > MAX_BILD_PIXEL) {
-      bmp.close && bmp.close();
+      if (bmp.close) bmp.close();
       throw new RipFehler('Das Bild ist zu groß. Erlaubt sind höchstens 100 Millionen Pixel.');
     }
     const c = leinwand(bmp.width, bmp.height);
-    const ctx = c.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(bmp, 0, 0);
-    bmp.close && bmp.close();
-    let daten;
-    try { daten = ctx.getImageData(0, 0, c.width, c.height).data; }
-    catch (e) { throw new RipFehler('Das Bild ist zu groß für dieses Gerät.'); }
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    if (bmp.close) bmp.close();
+    return { leinwand: c, breite: c.width, hoehe: c.height };
+  }
 
-    // Sichtbaren Bereich suchen (Alpha > 16), wie uploads._leeren_rand_abschneiden
-    let links = c.width, oben = c.height, rechts = -1, unten = -1, transparent = false;
-    for (let y = 0; y < c.height; y++) {
-      const zeile = y * c.width * 4;
-      for (let x = 0; x < c.width; x++) {
-        const a = daten[zeile + x * 4 + 3];
+  // ---------- Hintergrund erkennen (Randanalyse wie im DTF-Prüfer v15) ----------
+  // Ergebnis: art = 'durchsichtig' | 'einfarbig' | 'keiner', farbe = [r, g, b] bei 'einfarbig'
+  function erkenneHintergrund(original) {
+    const { width: w, height: h } = original;
+    const d = pixelVon(original).data;
+    const rand = [];
+    const schritt = Math.max(1, Math.floor(Math.max(w, h) / 400));
+    const nimm = (x, y) => { const p = (y * w + x) * 4; rand.push([d[p], d[p + 1], d[p + 2], d[p + 3]]); };
+    for (let x = 0; x < w; x += schritt) { nimm(x, 0); nimm(x, h - 1); }
+    for (let y = 0; y < h; y += schritt) { nimm(0, y); nimm(w - 1, y); }
+    const deckend = rand.filter((p) => p[3] > 200);
+    if (deckend.length < rand.length * 0.6) return { art: 'durchsichtig', farbe: null };
+    const mittel = [0, 1, 2].map((k) => Math.round(deckend.reduce((s, p) => s + p[k], 0) / deckend.length));
+    const gleich = deckend.filter((p) => [0, 1, 2].every((k) => Math.abs(p[k] - mittel[k]) <= 40)).length / deckend.length;
+    return gleich >= 0.8 ? { art: 'einfarbig', farbe: mittel } : { art: 'keiner', farbe: null };
+  }
+
+  function farbeAn(original, x, y) {
+    const px = original.getContext('2d', { willReadFrequently: true }).getImageData(
+      Math.min(original.width - 1, Math.max(0, Math.floor(x))), Math.min(original.height - 1, Math.max(0, Math.floor(y))), 1, 1).data;
+    return [px[0], px[1], px[2]];
+  }
+
+  // ---------- Hintergrund entfernen ----------
+  // Entfernt die Farbe, die mit dem Bildrand zusammenhängt (Flutfüllung), auf
+  // Wunsch auch eingeschlossene Flächen in dieser Farbe (Innenflächen in „e“, „a“, „8“).
+  function entferneFarbe(img, farbe, toleranz, innenflaechen) {
+    const { width: w, height: h, data: d } = img;
+    const passt = (i) => {
+      const p = i * 4;
+      return d[p + 3] > 0 && Math.abs(d[p] - farbe[0]) <= toleranz &&
+        Math.abs(d[p + 1] - farbe[1]) <= toleranz && Math.abs(d[p + 2] - farbe[2]) <= toleranz;
+    };
+    const besucht = new Uint8Array(w * h);
+    const stapel = new Int32Array(w * h);
+    let oben = 0;
+    const start = (i) => { if (!besucht[i] && passt(i)) { besucht[i] = 1; stapel[oben++] = i; } };
+    for (let x = 0; x < w; x++) { start(x); start((h - 1) * w + x); }
+    for (let y = 0; y < h; y++) { start(y * w); start(y * w + w - 1); }
+    let entfernt = 0;
+    while (oben > 0) {
+      const i = stapel[--oben];
+      d[i * 4 + 3] = 0; entfernt++;
+      const x = i % w;
+      if (x > 0) start(i - 1);
+      if (x < w - 1) start(i + 1);
+      if (i >= w) start(i - w);
+      if (i < (h - 1) * w) start(i + w);
+    }
+    if (innenflaechen) {
+      const gesehen = new Uint8Array(w * h);
+      const teil = new Int32Array(w * h);
+      const grenze = w * h * MAX_INNENFLAECHE;
+      for (let s = 0; s < w * h; s++) {
+        if (gesehen[s] || besucht[s] || !passt(s)) continue;
+        let n = 0, top = 0;
+        gesehen[s] = 1; stapel[top++] = s;
+        while (top > 0) {
+          const i = stapel[--top];
+          teil[n++] = i;
+          const x = i % w;
+          const nachbarn = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i >= w ? i - w : -1, i < (h - 1) * w ? i + w : -1];
+          for (const m of nachbarn) if (m >= 0 && !gesehen[m] && !besucht[m] && passt(m)) { gesehen[m] = 1; stapel[top++] = m; }
+        }
+        if (n <= grenze) { for (let k = 0; k < n; k++) d[teil[k] * 4 + 3] = 0; entfernt += n; }
+      }
+    }
+    return entfernt;
+  }
+
+  // Alphakanal: Minimum-Filter (Saum abtragen) und 3x3-Mittelung (Treppen glätten)
+  function erodiereAlpha(a, w, h, r) {
+    const tmp = new Uint8Array(w * h), aus = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let m = 255;
+      for (let k = -r; k <= r; k++) { const xx = x + k; if (xx >= 0 && xx < w && a[y * w + xx] < m) m = a[y * w + xx]; }
+      tmp[y * w + x] = m;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let m = 255;
+      for (let k = -r; k <= r; k++) { const yy = y + k; if (yy >= 0 && yy < h && tmp[yy * w + x] < m) m = tmp[yy * w + x]; }
+      aus[y * w + x] = m;
+    }
+    return aus;
+  }
+  function mittleAlpha(a, w, h, r) {
+    const tmp = new Uint16Array(w * h), aus = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      let summe = 0, n = 0;
+      for (let x = -r; x < w; x++) {
+        if (x + r < w) { summe += a[y * w + x + r]; n++; }
+        if (x - r - 1 >= 0) { summe -= a[y * w + x - r - 1]; n--; }
+        if (x >= 0) tmp[y * w + x] = Math.round(summe / n);
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let summe = 0, n = 0;
+      for (let y = -r; y < h; y++) {
+        if (y + r < h) { summe += tmp[(y + r) * w + x]; n++; }
+        if (y - r - 1 >= 0) { summe -= tmp[(y - r - 1) * w + x]; n--; }
+        if (y >= 0) aus[y * w + x] = Math.round(summe / n);
+      }
+    }
+    return aus;
+  }
+  function alphaAus(d) { const a = new Uint8Array(d.length / 4); for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3]; return a; }
+  function alphaEin(d, a) { for (let i = 0; i < a.length; i++) d[i * 4 + 3] = a[i]; }
+
+  function zuschneiden(c) {
+    const d = pixelVon(c).data, w = c.width, h = c.height;
+    let links = w, oben = h, rechts = -1, unten = -1, transparent = false;
+    for (let y = 0; y < h; y++) {
+      const z = y * w * 4;
+      for (let x = 0; x < w; x++) {
+        const a = d[z + x * 4 + 3];
         if (a < 255) transparent = true;
         if (a > LEER_ALPHA) {
           if (x < links) links = x;
@@ -82,17 +197,36 @@
         }
       }
     }
-    let bild = c, randEntfernt = false;
-    if (transparent && rechts >= 0) {
-      const l = Math.max(0, links - 2), o = Math.max(0, oben - 2);
-      const r = Math.min(c.width, rechts + 1 + 2), u = Math.min(c.height, unten + 1 + 2);
-      if (l > 0 || o > 0 || r < c.width || u < c.height) {
-        bild = leinwand(r - l, u - o);
-        bild.getContext('2d').drawImage(c, l, o, r - l, u - o, 0, 0, r - l, u - o);
-        randEntfernt = true;
+    const ganz = { leinwand: c, randEntfernt: false, transparent, versatz: { x: 0, y: 0 } };
+    if (!transparent || rechts < 0) return ganz;
+    const l = Math.max(0, links - 2), o = Math.max(0, oben - 2);
+    const r = Math.min(w, rechts + 1 + 2), u = Math.min(h, unten + 1 + 2);
+    if (l === 0 && o === 0 && r === w && u === h) return ganz;
+    const neu = leinwand(r - l, u - o);
+    neu.getContext('2d').drawImage(c, l, o, r - l, u - o, 0, 0, r - l, u - o);
+    return { leinwand: neu, randEntfernt: true, transparent, versatz: { x: l, y: o } };
+  }
+
+  // Liefert das Motiv für die weiteren Schritte: Hintergrund entfernt (auf Wunsch),
+  // Saum abgetragen, leerer Rand abgeschnitten.
+  function bereiteVor(original, hintergrund) {
+    let quelle = original, entfernt = 0;
+    if (hintergrund && hintergrund.entfernen && hintergrund.farbe) {
+      const img = pixelVon(original);
+      entfernt = entferneFarbe(img, hintergrund.farbe, hintergrund.toleranz, hintergrund.innenflaechen);
+      if (entfernt > 0) {
+        // Hellen Saum der alten Hintergrundfarbe abtragen (1 px) und Kante glätten
+        const a = mittleAlpha(erodiereAlpha(alphaAus(img.data), img.width, img.height, 1), img.width, img.height, 1);
+        alphaEin(img.data, a);
       }
+      quelle = ausPixeln(img);
     }
-    return { leinwand: bild, breite: bild.width, hoehe: bild.height, randEntfernt, transparent };
+    const z = zuschneiden(quelle);
+    return {
+      leinwand: z.leinwand, breite: z.leinwand.width, hoehe: z.leinwand.height,
+      randEntfernt: z.randEntfernt, transparent: z.transparent, hintergrundEntfernt: entfernt > 0,
+      versatz: z.versatz, // Lage des Motivs im Originalbild (für das Antippen einer Farbe)
+    };
   }
 
   function vorschau(bild, maxKante) {
@@ -104,67 +238,36 @@
     return c.toDataURL('image/png');
   }
 
-  // ---------- Größe und Auflösung (wie rip.druckgroesse / resolution.check_resolution) ----------
-  function format(code, breiteMm, hoeheMm) {
-    if (code === 'CUSTOM') {
-      const b = Number(breiteMm), h = Number(hoeheMm);
-      if (!(b >= 10 && b <= 3000 && h >= 10 && h <= 3000)) throw new RipFehler('Breite und Höhe müssen zwischen 10 und 3000 mm liegen.');
-      return { breite: b, hoehe: h };
-    }
-    if (!FORMATE[code]) throw new RipFehler('Unbekanntes Format.');
-    return FORMATE[code];
-  }
-
-  function druckgroesse(breitePx, hoehePx, fmt, anpassung) {
-    let skala;
-    if (anpassung === 'einpassen') skala = Math.min(fmt.breite / breitePx, fmt.hoehe / hoehePx);
-    else if (anpassung === 'fuellen') skala = Math.max(fmt.breite / breitePx, fmt.hoehe / hoehePx);
-    else throw new RipFehler('Unbekannte Einstellung: Bild einpassen oder Fläche füllen wählen.');
-    const motivB = breitePx * skala, motivH = hoehePx * skala;
-    const druckB = anpassung === 'fuellen' ? fmt.breite : motivB;
-    const druckH = anpassung === 'fuellen' ? fmt.hoehe : motivH;
+  // ---------- Größe und Auflösung ----------
+  function druckgroesse(breitePx, hoehePx, breiteCm) {
+    const b = Number(String(breiteCm).replace(',', '.'));
+    if (!(b >= MIN_BREITE_CM && b <= MAX_BREITE_CM)) throw new RipFehler('Die Breite muss zwischen 1 und 300 cm liegen.');
+    const breiteMm = b * 10, hoeheMm = breiteMm * hoehePx / breitePx;
     return {
-      breiteMm: druckB, hoeheMm: druckH,
-      breitePx: Math.max(1, pyRound(druckB / MM_PRO_ZOLL * DPI)),
-      hoehePx: Math.max(1, pyRound(druckH / MM_PRO_ZOLL * DPI)),
-      motivBreiteMm: motivB, motivHoeheMm: motivH,
+      breiteMm, hoeheMm,
+      breitePx: Math.max(1, pyRound(breiteMm / MM_PRO_ZOLL * DPI)),
+      hoehePx: Math.max(1, pyRound(hoeheMm / MM_PRO_ZOLL * DPI)),
     };
   }
 
-  // Python rundet halbe Werte zur geraden Zahl; gleich runden, damit die Pixelmaße übereinstimmen
-  function pyRound(v) {
-    const f = Math.floor(v), rest = v - f;
-    if (Math.abs(rest - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1;
-    return Math.round(v);
+  function aufloesung(breitePx, breiteMm) {
+    const dpi = breitePx / (breiteMm / MM_PRO_ZOLL);
+    const g = pyRound(dpi);
+    if (g >= DPI) return { dpi, faktor: DPI / dpi, ampel: 'gruen', hinweis: 'Das Bild ist scharf genug: ' + g + ' dpi bei dieser Breite.' };
+    if (g >= 150) return { dpi, faktor: DPI / dpi, ampel: 'gelb', hinweis: g + ' dpi bei dieser Breite. Die App rechnet auf 300 dpi hoch und glättet die Kanten.' };
+    return { dpi, faktor: DPI / dpi, ampel: 'gelb', hinweis: 'Nur ' + g + ' dpi bei dieser Breite. Die App rechnet stark hoch; das Motiv kann weich wirken. Besser kleiner drucken oder ein größeres Bild nehmen.' };
   }
 
-  function aufloesung(breitePx, hoehePx, breiteMm, hoeheMm) {
-    const dpi = Math.min(breitePx / (breiteMm / MM_PRO_ZOLL), hoehePx / (hoeheMm / MM_PRO_ZOLL));
-    const gerundet = pyRound(dpi);
-    let ampel, hinweis;
-    if (gerundet < DPI_ROT) {
-      ampel = 'rot';
-      hinweis = 'Auflösung zu niedrig: ' + gerundet + ' dpi in dieser Druckgröße. Unter ' + DPI_ROT + ' dpi ist der Druck deutlich unscharf.';
-    } else if (gerundet < DPI_GELB) {
-      ampel = 'gelb';
-      hinweis = 'Auflösung grenzwertig: ' + gerundet + ' dpi in dieser Druckgröße. Empfohlen sind mindestens ' + DPI_GELB + ' dpi.';
-    } else {
-      ampel = 'gruen';
-      hinweis = 'Auflösung ausreichend: ' + gerundet + ' dpi in dieser Druckgröße.';
-    }
-    return { dpi, ampel, hinweis };
+  function pruefeBreite(bild, breiteCm) {
+    const g = druckgroesse(bild.breite, bild.hoehe, breiteCm);
+    return { groesse: g, aufloesung: aufloesung(bild.breite, g.breiteMm) };
   }
 
-  function pruefeGroesse(bild, code, breiteMm, hoeheMm, anpassung) {
-    const g = druckgroesse(bild.breite, bild.hoehe, format(code, breiteMm, hoeheMm), anpassung);
-    return { groesse: g, aufloesung: aufloesung(bild.breite, bild.hoehe, g.motivBreiteMm, g.motivHoeheMm) };
-  }
-
-  // ---------- Skalieren ----------
-  // Stark verkleinern in Halbierungsschritten: vermeidet Treppen und Flimmern.
-  // Die Leinwand rechnet intern mit vormultiplizierter Transparenz, darum
-  // entstehen an durchsichtigen Kanten keine dunklen Säume.
-  function skaliert(quelle, breite, hoehe) {
+  // ---------- Rechnen auf Druckgröße ----------
+  // Verkleinern in Halbierungsschritten (keine Treppen), Vergrößern in einem
+  // Schritt mit bester Glättung. Die Leinwand rechnet mit vormultiplizierter
+  // Transparenz, darum entstehen an Kanten keine dunklen Säume.
+  function skaliere(quelle, breite, hoehe) {
     let aktuell = quelle;
     while (aktuell.width / 2 >= breite && aktuell.height / 2 >= hoehe) {
       const halb = leinwand(Math.ceil(aktuell.width / 2), Math.ceil(aktuell.height / 2));
@@ -173,7 +276,62 @@
       hctx.drawImage(aktuell, 0, 0, halb.width, halb.height);
       aktuell = halb;
     }
-    return aktuell;
+    const ziel = leinwand(breite, hoehe);
+    const ctx = ziel.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new RipFehler('Diese Größe ist für dieses Gerät zu groß. Bitte kleiner wählen.');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(aktuell, 0, 0, breite, hoehe);
+    return ziel;
+  }
+
+  // Logo-Glättung: Motiv als Vektorform nachzeichnen und in Druckgröße neu zeichnen.
+  // Gut für Logos und Schrift (glatte Kurven in jeder Größe), nicht für Fotos.
+  function logoGlaetten(quelle, breite, hoehe) {
+    if (!global.ImageTracer) throw new RipFehler('Die Logo-Glättung ist auf diesem Gerät nicht verfügbar.');
+    const f = Math.min(1, 1400 / Math.max(quelle.width, quelle.height));
+    const klein = skaliere(quelle, Math.max(1, Math.round(quelle.width * f)), Math.max(1, Math.round(quelle.height * f)));
+    const img = pixelVon(klein);
+    // Halb durchsichtige Randpixel vorher ganz sichtbar oder ganz durchsichtig machen:
+    // sonst erkennt der Vektorisierer sie als eigene (dunkle) Farbe und es entstehen Krümel am Rand.
+    const a = mittleAlpha(alphaAus(img.data), img.width, img.height, 1);
+    for (let i = 0; i < a.length; i++) {
+      img.data[i * 4 + 3] = a[i] >= 128 ? 255 : 0;
+      if (a[i] < 128) { img.data[i * 4] = 0; img.data[i * 4 + 1] = 0; img.data[i * 4 + 2] = 0; }
+    }
+    const svg = global.ImageTracer.imagedataToSVG(img, {
+      numberofcolors: 16, pathomit: 8, ltres: 1, qtres: 1, blurradius: 1, blurdelta: 20,
+      strokewidth: 0, roundcoords: 2, viewbox: true, desc: false,
+    }).replace('<svg ', '<svg width="' + breite + '" height="' + hoehe + '" ');
+    return new Promise((ok, fehler) => {
+      const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      const bildEl = new Image();
+      bildEl.onload = () => {
+        URL.revokeObjectURL(url);
+        const ziel = leinwand(breite, hoehe);
+        const ctx = ziel.getContext('2d', { willReadFrequently: true });
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(bildEl, 0, 0, breite, hoehe);
+        ok(ziel);
+      };
+      bildEl.onerror = () => { URL.revokeObjectURL(url); fehler(new RipFehler('Die Logo-Glättung ist fehlgeschlagen.')); };
+      bildEl.src = url;
+    });
+  }
+
+  // Leichtes Nachschärfen nach dem Hochrechnen (Unscharfmaske, nur Farbe, nur sichtbare Pixel)
+  function schaerfe(img, staerke) {
+    const { width: w, height: h, data: d } = img;
+    for (let k = 0; k < 3; k++) {
+      const kanal = new Uint8Array(w * h);
+      for (let i = 0; i < kanal.length; i++) kanal[i] = d[i * 4 + k];
+      const weich = mittleAlpha(kanal, w, h, 1);
+      for (let i = 0; i < kanal.length; i++) {
+        if (d[i * 4 + 3] === 0) continue;
+        const v = kanal[i] + staerke * (kanal[i] - weich[i]);
+        d[i * 4 + k] = v < 0 ? 0 : v > 255 ? 255 : v;
+      }
+    }
   }
 
   // ---------- PNG-Blöcke: sRGB-Profil und 300 dpi eintragen ----------
@@ -220,7 +378,6 @@
       const laenge = dv.getUint32(pos);
       const typ = String.fromCharCode(png[pos + 4], png[pos + 5], png[pos + 6], png[pos + 7]);
       const ende = pos + 12 + laenge;
-      // Eigene Farb- und Auflösungsangaben des Browsers ersetzen
       if (!['iCCP', 'sRGB', 'gAMA', 'cHRM', 'pHYs'].includes(typ)) teile.push(png.subarray(pos, ende));
       if (typ === 'IHDR') { teile.push(base64Bytes(ICCP_SRGB)); teile.push(block('pHYs', phys)); }
       pos = ende;
@@ -233,61 +390,70 @@
   }
 
   // ---------- RIP-Datei erzeugen ----------
-  async function erzeugeRipDatei(bild, code, breiteMm, hoeheMm, anpassung, kantenHaerten) {
-    const { groesse: g, aufloesung: auf } = pruefeGroesse(bild, code, breiteMm, hoeheMm, anpassung);
+  // optionen: kantenGlaetten (Standard an), schaerfen (Standard an, nur beim
+  // Hochrechnen), logoGlaetten (Standard aus)
+  async function erzeugeRipDatei(bild, breiteCm, optionen) {
+    const o = Object.assign({ kantenGlaetten: true, schaerfen: true, logoGlaetten: false }, optionen || {});
+    const { groesse: g, aufloesung: auf } = pruefeBreite(bild, breiteCm);
     if (g.breitePx * g.hoehePx > MAX_AUSGABE_PIXEL) {
-      throw new RipFehler('Diese Größe ergibt mehr als 150 Millionen Pixel. Bitte eine kleinere Größe wählen.');
+      throw new RipFehler('Diese Größe ergibt mehr als 150 Millionen Pixel. Bitte kleiner wählen.');
     }
-    const ziel = leinwand(g.breitePx, g.hoehePx);
-    const ctx = ziel.getContext('2d', { willReadFrequently: true });
-    if (!ctx) throw new RipFehler('Diese Größe ist für dieses Gerät zu groß. Bitte eine kleinere Größe wählen.');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    if (anpassung === 'fuellen') {
-      const motivB = Math.max(g.breitePx, pyRound(g.motivBreiteMm / MM_PRO_ZOLL * DPI));
-      const motivH = Math.max(g.hoehePx, pyRound(g.motivHoeheMm / MM_PRO_ZOLL * DPI));
-      const quelle = skaliert(bild.leinwand, motivB, motivH);
-      // Überstand mittig abschneiden (gleiche Ganzzahl-Teilung wie Python)
-      ctx.drawImage(quelle, -Math.floor((motivB - g.breitePx) / 2), -Math.floor((motivH - g.hoehePx) / 2), motivB, motivH);
-    } else {
-      ctx.drawImage(skaliert(bild.leinwand, g.breitePx, g.hoehePx), 0, 0, g.breitePx, g.hoehePx);
+    const hoch = auf.faktor > 1.05;
+    const ziel = skaliere(bild.leinwand, g.breitePx, g.hoehePx);
+    const img = pixelVon(ziel);
+    const d = img.data;
+    if (o.logoGlaetten) {
+      // Umriss (Alpha) kommt aus der Rasterfassung, die gleich geglättet wird; die
+      // Vektorform liefert nur die Farben innen (klare Farbgrenzen, keine JPEG-Störungen).
+      // Wo die Vektorform eine Lücke hat, bleibt das Rasterbild: keine Löcher, keine Krümel.
+      const v = pixelVon(await logoGlaetten(bild.leinwand, g.breitePx, g.hoehePx)).data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (v[i + 3] >= 128) { d[i] = v[i]; d[i + 1] = v[i + 1]; d[i + 2] = v[i + 2]; }
+      }
     }
 
-    let pixel;
-    try { pixel = ctx.getImageData(0, 0, g.breitePx, g.hoehePx); }
-    catch (e) { throw new RipFehler('Diese Größe ist für dieses Gerät zu groß. Bitte eine kleinere Größe wählen.'); }
-    const d = pixel.data;
     let halb = 0, durchsichtig = false;
-    for (let i = 3; i < d.length; i += 4) {
-      if (d[i] < 255) { durchsichtig = true; if (d[i] > 0) halb++; }
-    }
+    for (let i = 3; i < d.length; i += 4) if (d[i] < 255) { durchsichtig = true; if (d[i] > 0) halb++; }
     const anteil = halb / (g.breitePx * g.hoehePx);
-    const gehaertet = kantenHaerten && durchsichtig && halb > 0;
-    if (gehaertet) {
-      for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 128 ? 255 : 0;
-      ctx.putImageData(pixel, 0, 0);
+
+    const geschaerft = o.schaerfen && hoch && !o.logoGlaetten;
+    if (geschaerft) schaerfe(img, 0.6);
+
+    const geglaettet = o.kantenGlaetten && durchsichtig;
+    if (geglaettet) {
+      // Kontur vor dem Schwellenschnitt weichzeichnen (zwei Durchgänge, fast wie ein
+      // Gaußfilter): beim Hochrechnen stärker, damit aus Treppen und JPEG-Störungen
+      // runde, ruhige Kanten werden. Danach Alpha nur 0 oder 255.
+      const radius = Math.max(1, Math.min(8, Math.round(auf.faktor * 0.6)));
+      const a = mittleAlpha(mittleAlpha(alphaAus(d), g.breitePx, g.hoehePx, radius), g.breitePx, g.hoehePx, radius);
+      for (let i = 0; i < a.length; i++) a[i] = a[i] >= 128 ? 255 : 0;
+      alphaEin(d, a);
     }
+    ziel.getContext('2d').putImageData(img, 0, 0);
 
     const roh = await new Promise((ok, fehler) => ziel.toBlob((b) => (b ? ok(b) : fehler(new RipFehler('Die PNG-Datei konnte nicht erzeugt werden (zu wenig Speicher?).'))), 'image/png'));
-    const png = pngMitProfilUndDpi(new Uint8Array(await roh.arrayBuffer()));
-    const blob = new Blob([png], { type: 'image/png' });
-    return { blob, groesse: g, dpiEffektiv: auf.dpi, bericht: bericht(g, auf, durchsichtig, anteil, gehaertet, blob.size) };
+    const blob = new Blob([pngMitProfilUndDpi(new Uint8Array(await roh.arrayBuffer()))], { type: 'image/png' });
+    return {
+      blob, groesse: g, dpiEffektiv: auf.dpi, vorschauUrl: vorschau(ziel, 900),
+      bericht: bericht(g, auf, bild, durchsichtig, anteil, geglaettet, geschaerft, o.logoGlaetten, blob.size),
+    };
   }
 
   function cm(mm) { return (mm / 10).toFixed(1).replace('.', ','); }
 
-  // Gleiche Prüfpunkte und Texte wie rip._pruefen
-  function bericht(g, auf, durchsichtig, anteil, gehaertet, bytes) {
+  function bericht(g, auf, bild, durchsichtig, anteil, geglaettet, geschaerft, logo, bytes) {
     const punkte = [{ schluessel: 'aufloesung', label: 'Auflösung', ampel: auf.ampel, hinweis: auf.hinweis }];
     punkte.push({ schluessel: 'groesse', label: 'Druckgröße', ampel: 'gruen',
       hinweis: cm(g.breiteMm) + ' x ' + cm(g.hoeheMm) + ' cm (' + g.breitePx + ' x ' + g.hoehePx + ' Pixel bei ' + DPI + ' dpi).' });
     punkte.push(durchsichtig
-      ? { schluessel: 'hintergrund', label: 'Hintergrund', ampel: 'gruen', hinweis: 'Das Bild hat durchsichtige Stellen; dort wird nichts gedruckt.' }
+      ? { schluessel: 'hintergrund', label: 'Hintergrund', ampel: 'gruen', hinweis: bild.hintergrundEntfernt ? 'Hintergrund entfernt; dort wird nichts gedruckt.' : 'Das Bild hat durchsichtige Stellen; dort wird nichts gedruckt.' }
       : { schluessel: 'hintergrund', label: 'Hintergrund', ampel: 'gelb', hinweis: 'Kein durchsichtiger Hintergrund: Das ganze Rechteck wird gedruckt, auch ein weißer Hintergrund.' });
     const prozent = (anteil * 100).toFixed(2).replace('.', ',');
-    if (gehaertet) punkte.push({ schluessel: 'halbtransparenz', label: 'Kanten', ampel: 'gruen', hinweis: 'Halbtransparente Pixel (' + prozent + ' %) wurden hart gemacht.' });
-    else if (anteil >= HALBTRANSPARENZ_HINWEIS) punkte.push({ schluessel: 'halbtransparenz', label: 'Kanten', ampel: 'gelb', hinweis: prozent + ' % halbtransparente Pixel. Im DTF-Druck können daraus fleckige Kanten werden.' });
+    if (geglaettet) punkte.push({ schluessel: 'halbtransparenz', label: 'Kanten', ampel: 'gruen', hinweis: 'Kanten geglättet und hart gemacht (vorher ' + prozent + ' % halbtransparente Pixel).' });
+    else if (anteil >= 0.005) punkte.push({ schluessel: 'halbtransparenz', label: 'Kanten', ampel: 'gelb', hinweis: prozent + ' % halbtransparente Pixel. Im DTF-Druck können daraus fleckige Kanten werden.' });
     else punkte.push({ schluessel: 'halbtransparenz', label: 'Kanten', ampel: 'gruen', hinweis: 'Keine nennenswerte Halbtransparenz.' });
+    if (logo) punkte.push({ schluessel: 'optimierung', label: 'Optimierung', ampel: 'gruen', hinweis: 'Logo als Vektorform nachgezeichnet und in Druckgröße neu gezeichnet.' });
+    else if (geschaerft) punkte.push({ schluessel: 'optimierung', label: 'Optimierung', ampel: 'gruen', hinweis: 'Auf 300 dpi hochgerechnet und leicht nachgeschärft.' });
     punkte.push({ schluessel: 'farbraum', label: 'Farben', ampel: 'gruen', hinweis: 'RGB mit sRGB-Profil. Die Umrechnung in Druckfarben macht der RIP mit seinem Druckerprofil.' });
     const menge = bytes < 1024 * 1024 ? Math.round(bytes / 1024) + ' KB' : (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
     punkte.push({ schluessel: 'datei', label: 'Datei', ampel: 'gruen', hinweis: 'PNG mit ' + DPI + ' dpi, ' + menge + '.' });
@@ -296,5 +462,7 @@
     return { punkte, gesamt_ampel: gesamt, download_erlaubt: gesamt !== 'rot' };
   }
 
-  global.TexStyleRip = { ladeBild, vorschau, pruefeGroesse, erzeugeRipDatei, RipFehler };
+  global.TexStyleRip = {
+    ladeBild, erkenneHintergrund, farbeAn, bereiteVor, vorschau, pruefeBreite, erzeugeRipDatei, RipFehler,
+  };
 })(window);
