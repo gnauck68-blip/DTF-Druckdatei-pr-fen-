@@ -1,0 +1,11 @@
+HAKRO Original-Produktbilder, abgerufen 25.09.2026. Keine Schnittmuster, keine Maßstabsfreigabe.
+https://hakro.com/en/products/no-292-hakro-t-shirt-classic
+https://hakro.com/products/no-601-hakro-kapuzen-sweatshirt-premium
+Dateien: item_p_0292_001_01/02/03/04 sowie item_p_0601_001_01/02/03/04 von hakro.com/cdn/shop/files/. 0292 Ansicht04 enthält UUID d68d58bf-0d6f-4d7e-9cec-b74d6fe681a2.
+Fotos unverändert als Daten-URLs eingebettet, Abrufbreite 700 Pixel. Keine Bildanfragen zur Laufzeit.
+Die enthaltenen weißen Fotovorlagen gelten nur für die benannten Modelle. Eigene Fotos können je Platzierung und Seite geladen werden. Produktionsmaße sind separat zu prüfen.
+
+Ergänzung: https://hakro.com/products/no-848-hakro-softshelljacke-ontario
+HAKRO 0848, Farbe 034 tinte, item_p_0848_034_01 bis 04.jpg. Abgerufen 25.09.2026. Auch diese Produktfotos sind keine maßhaltigen Originalschnittmuster.
+
+Aktuelles Update: Standardvorlagen sind eigenständig erstellte schematische SVG-Konturen (sketches.js), orientiert am vom Nutzer gezeigten Stil. Keine HAKRO-Originalschnitte. Fotodaten bleiben ausschließlich für alte gespeicherte Dokumente verfügbar.

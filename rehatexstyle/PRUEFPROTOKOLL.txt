@@ -1,0 +1,280 @@
+PRÜFSTAND 26.09.2026 – TESTVERSION, KEINE PRODUKTIONSFREIGABE
+
+test-core.cjs
+PASS: Geldbeträge, Varianten, Staffelgrenzen, manuelle EK, gemischte Steuer, fehlender VK/Steuersatz.
+
+
+test-pricing.cjs
+PASS: Industriegrenzen 1/9/10/49/50/99/100/249/250/499/500, identische Varianten addiert, Größen/Farben getrennt, Mengenrückgang, manuelle VK und Altpreise geschützt, EK getrennt.
+
+
+test-sales.cjs
+PASS: 36 Druckstaffelfälle, Flächengrenzen, Aufbringen, Motivgruppen, Pauschale/Meterware, XL-Zuschlag, Anfrage, Bruttorundung, alte Nettosummen und gemischte Steuer.
+
+
+test-views.cjs
+PASS: Acht unterschiedliche Originalansichten, fehlende Vorlage, eigenes Foto hat Vorrang. UI auf Android nicht ausgeführt.
+
+
+test-placement.cjs
+PASS: Staffel 49/50/51, editierbare Preise, 7%-Rundung, Maßstab/Nullpunkt, keine falsche Maßbestätigung, mehrere Motive im Angebot, VK ohne EK, unveränderter Dokumentstand. Kein Android-UI-Test.
+PASS: 12 Konturansichten, Kalibrierung beim Wechsel zurückgesetzt, Originaldaten nicht verändert.
+
+
+test-automatic.cjs
+PASS: Katalogformular übergibt Modell/Farbe/Größe/EK/VK; Dienstleistung automatisch, 49/50-Logik, mehrere Motive, kein Duplikat, unveredelt und manueller Modus. Formularadapter, kein Android-Browser.
+
+
+test-commercial.cjs
+PASS: Textil/Motiv/Druck/Aufbringen/Pauschale/Angebot; 179,40 EUR brutto; keine Duplikate; Staffelwechsel; Anfragepreis; nur Transfer; Vorschau ohne Mutation; Angebot unverändert.
+
+
+test-integration.cjs
+{
+  "imports": [
+    {
+      "name": "HAKRO_Händler-Einkaufspreisliste_01.2026_EU_de.xlsx",
+      "valid": 517,
+      "ignored": 18,
+      "problems": [
+        {
+          "row": 277,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0521",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 299,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0541",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 300,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0545",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 313,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0562",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 314,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0565",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 538,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0960",
+          "sizeText": ""
+        },
+        {
+          "row": 539,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0961",
+          "sizeText": ""
+        },
+        {
+          "row": 540,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0965",
+          "sizeText": ""
+        },
+        {
+          "row": 544,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0982",
+          "sizeText": "35-42"
+        },
+        {
+          "row": 545,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0983",
+          "sizeText": "39-46"
+        }
+      ],
+      "rounded": 59
+    },
+    {
+      "name": "HAKRO_UVP_und_Industriepreisliste_01_2026.xlsx",
+      "valid": 517,
+      "ignored": 18,
+      "problems": [
+        {
+          "row": 277,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0521",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 299,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0541",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 300,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0545",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 313,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0562",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 314,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0565",
+          "sizeText": "110-164"
+        },
+        {
+          "row": 538,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0960",
+          "sizeText": ""
+        },
+        {
+          "row": 539,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0961",
+          "sizeText": ""
+        },
+        {
+          "row": 540,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0965",
+          "sizeText": ""
+        },
+        {
+          "row": 544,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0982",
+          "sizeText": "35-42"
+        },
+        {
+          "row": 545,
+          "reason": "Farbe oder Größenbereich nicht automatisch zuordenbar",
+          "model": "0983",
+          "sizeText": "39-46"
+        }
+      ],
+      "rounded": 0
+    }
+  ],
+  "matchingPriceRows": {
+    "matching": 511,
+    "unmatched": [
+      {
+        "model": "0236",
+        "size": "XS-2XL",
+        "colors": [
+          "015",
+          "328"
+        ]
+      },
+      {
+        "model": "0236",
+        "size": "3XL",
+        "colors": [
+          "015",
+          "328"
+        ]
+      },
+      {
+        "model": "0255",
+        "size": "XS-2XL",
+        "colors": [
+          "002",
+          "005",
+          "010",
+          "015",
+          "017",
+          "028"
+        ]
+      },
+      {
+        "model": "0255",
+        "size": "3XL",
+        "colors": [
+          "002",
+          "005",
+          "010",
+          "015",
+          "017",
+          "028"
+        ]
+      },
+      {
+        "model": "0606",
+        "size": "4XL",
+        "colors": [
+          "001",
+          "002",
+          "005",
+          "010",
+          "028",
+          "034"
+        ]
+      },
+      {
+        "model": "0606",
+        "size": "5XL+6XL",
+        "colors": [
+          "001",
+          "002",
+          "005",
+          "010",
+          "028",
+          "034"
+        ]
+      }
+    ]
+  },
+  "checks": {
+    "net": 12000,
+    "tax": 1080,
+    "gross": 13080,
+    "encrypted": true,
+    "recovery": true
+  }
+}
+PASS: Original-XLSX, Preisabgleich, Dokumentinhalt ohne EK, Lieferschein ohne Preise, HTML-Escaping, fester Dokumentstand, verschlüsselte Sicherung, Wiederherstellung, falsches Passwort und manipulierte Datei.
+
+
+NICHT GEPRÜFT: tatsächliche Android-/Windows-Browserbedienung, Pointer-/Touchabläufe, IndexedDB unter Android content://, System-Dateiauswahl, visuelle PDF-Seitenumbrüche und reale Druckausgabe. Browser-Testdatei im Paket ist kein Nachweis einer erfolgten Browserprüfung.
+Keine 100%-Fehlerfreiheitsgarantie. Vor Produktivbetrieb diese Prüfungen auf Zielgeräten ausführen.
+Preistabelle nach den vom Nutzer eingefügten Angaben vom 24.07.2026; Word-Quelldatei nicht geprüft. Steuerwerte sind Nutzer-Vorgaben, keine steuerrechtliche Prüfung.
+
+NACHTRAG v7 · Upload und Aufbringpreis
+Alle acht bisherigen Prüfsuiten erneut erfolgreich ausgeführt.
+test-upload-fix.cjs PASS: PNG mit leerem/generischem MIME, falsche und übergroße Dateien; Sonderpreis 20 EUR ausdrücklich auf Staffel zurückgesetzt; 20 Aufbringungen zu 3,50 EUR im Angebotsinhalt, 70 EUR brutto; mit 10 Textilien zu 54,74 EUR insgesamt 617,40 EUR.
+Prüfung über Datei-/Formularadapter, keine echte Android-Dateiauswahl oder PDF-Renderprüfung. Die konkrete Ursache des gemeldeten Android-Uploadfehlers wurde nicht auf dem Gerät reproduziert.
+
+NACHTRAG v8 · Katalogübernahme
+test-catalog-add.cjs PASS: Treffer aus dem Katalog anklicken, Zielauftrag wählen, fehlenden Händler-EK netto manuell eingeben, Industrie-VK brutto für 11 Stück und 19 % = 54,74 EUR je Textil, Übernahme in Auftrag. Die neun bisherigen Prüfsuiten erneut erfolgreich.
+Formularadapter und Preiskern geprüft; PC-Klickablauf im echten Browser und Import aus dem Gerät nicht ausgeführt.
+
+NACHTRAG v9 · Motiv statt Textilbild
+test-placement-ui.cjs PASS: Falsch als Textilbild gewähltes Motiv in Transfer umgewandelt, Kontur sichtbar, Breite 100 zu 180 mm und Höhe 50 zu 90 mm bei Proportionen; SVG-Motivbreite 72 Einheiten in schematischer Ansicht. test-placement, test-commercial und test-upload-fix bestanden.
+DOM-Adapter, keine echte PC-/Android-Browserbedienung; schematische Kontur bleibt ohne Vermessung nicht maßhaltig.
+
+NACHTRAG v10 · Position mit offenem VK
+test-open-vk.cjs PASS: 2 Stück Modell 0106 Farbe 001 Größe 3XL mit Händler-EK und ohne Industrie-VK übernommen; VK null, Angebotsberechnung gesperrt; späterer manueller Brutto-VK berechenbar. Betroffene Kern-, Katalog-, Preis-, Angebots- und Excel-Prüfungen erneut bestanden.
+Formularadapter, kein echter PC-Browser-Test.
+
+NACHTRAG v11 · Motive beim Hinzufügen eines Textils übernehmen
+test-design-copy.cjs PASS: 11 Hemden mit Brust/Rücken plus 1 Hemd ergeben durch Kopie je 12 Drucke und 24 Aufbringungen, keine Doppelzählung; Kopien ohne alte Kalibrierung und zur Sichtprüfung markiert. Eine schon hinzugefügte Position kann im Bearbeiten-Formular die bestehende Motivvorlage übernehmen. Der Vorgang wurde per JS/Formularadapter geprüft; PC-/Android-Klickfolge und PDF nach dieser Änderung nicht auf Zielgerät geprüft.
+
+NACHTRAG v12 · Identische Transfers zusammenfassen
+test-design-copy.cjs PASS: Brust- und Rückenmotiv mit jeweils 11+1 Stück erscheinen als je eine Druckposition mit 12 Stück; Aufbringen bleibt 24 × 3,50 € = 84,00 € brutto. Druck 12 × 2,00 € + 12 × 7,50 € = 114,00 € brutto. Druckpreisstaffel bleibt über alle gleichen Motivdateien und Größen aggregiert. Verschiedene manuelle Einzelpreise werden getrennt geführt. Alle 13 automatisierten Prüfsuiten bestanden. Das Verhalten im realen PC-Browser und der neue PDF-Ausdruck sind noch nicht durch Gerätetest bestätigt.
+
+NACHTRAG Quellpaket v13
+Build und Verpackung ohne CODEX_PRIMARY_RUNTIME_NODE_MODULES mit der mitgelieferten JSZip-Bibliothek ausgeführt; 34 Einträge in der ZIP. Das ist ein lokaler Node-Test, kein PC-/Android-Gerätetest.
