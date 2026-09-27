@@ -1,4 +1,4 @@
-/* Erzeugt von scripts/studio-engine-bauen.mjs aus studio/dist (engine.mjs,
+/* Erzeugt von scripts/studio-engine-bauen.mjs aus studio-engine/ (engine.mjs,
    resample.mjs, crop-geometry.mjs). Nicht von Hand ändern. */
 (function (global) {
 'use strict';

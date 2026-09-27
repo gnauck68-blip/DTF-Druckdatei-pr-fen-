@@ -1,17 +1,17 @@
 // Baut texstyle_dtf/static/studio-engine.js aus den Rechenfunktionen des
-// Texstyle DTF Studio (studio/dist). Das Ergebnis ist ein klassisches Script
+// Texstyle DTF Studio (Ordner studio-engine/, Quelle: Repository TexstyleDTFStudio). Das Ergebnis ist ein klassisches Script
 // ohne import/export: Es läuft in der Seite und im Worker (importScripts)
 // und stellt alles unter self.TexStyleStudio bereit.
 //   node scripts/studio-engine-bauen.mjs          Datei schreiben
 //   node scripts/studio-engine-bauen.mjs --pruefen nur prüfen, ob sie aktuell ist
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const quelle = (name) => readFileSync(new URL('../studio/dist/' + name, import.meta.url), 'utf8')
+const quelle = (name) => readFileSync(new URL('../studio-engine/' + name, import.meta.url), 'utf8')
   .replace(/^import .*?;\n/gm, '').replace(/^export /gm, '');
 const namen = ['MAX_PIXELS', 'dimensions', 'rgb', 'erodeAlpha', 'processPixels', 'adjustHsl', 'makeBase',
   'traceSvg', 'pack', 'validateSheet', 'pdfImage', 'resolutionPlan', 'lanczosResize',
   'moveCropRect', 'resizeCropRect', 'drawCropRect', 'cropPixels'];
-const inhalt = '/* Erzeugt von scripts/studio-engine-bauen.mjs aus studio/dist (engine.mjs,\n' +
+const inhalt = '/* Erzeugt von scripts/studio-engine-bauen.mjs aus studio-engine/ (engine.mjs,\n' +
   '   resample.mjs, crop-geometry.mjs). Nicht von Hand ändern. */\n' +
   '(function (global) {\n\'use strict\';\n' +
   quelle('engine.mjs') + '\n' + quelle('resample.mjs') + '\n' + quelle('crop-geometry.mjs') + '\n' +

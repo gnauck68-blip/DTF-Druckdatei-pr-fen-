@@ -128,7 +128,7 @@ def test_werkzeuge_fuer_fachkraefte(adresse, tmp_path: Path):  # noqa: F811
 
 @pytest.mark.skipif(not shutil.which("node"), reason="Node.js fehlt")
 def test_studio_engine_ist_aktuell():
-    """studio-engine.js muss aus studio/dist neu gebaut sein."""
+    """studio-engine.js muss aus studio-engine/ neu gebaut sein."""
     lauf = subprocess.run(["node", str(HIER.parent / "scripts" / "studio-engine-bauen.mjs"), "--pruefen"],
                           capture_output=True, text=True, timeout=60)
     assert lauf.returncode == 0, lauf.stderr
