@@ -278,3 +278,14 @@ test-design-copy.cjs PASS: Brust- und Rückenmotiv mit jeweils 11+1 Stück ersch
 
 NACHTRAG Quellpaket v13
 Build und Verpackung ohne CODEX_PRIMARY_RUNTIME_NODE_MODULES mit der mitgelieferten JSZip-Bibliothek ausgeführt; 34 Einträge in der ZIP. Das ist ein lokaler Node-Test, kein PC-/Android-Gerätetest.
+
+NACHTRAG v14 · Gerätenummern, Bildspeicher, Fehlerkorrekturen (27.09.2026)
+tests/test-browser.cjs in Chromium (Playwright, headless) PASS, 12 Prüfungen:
+- Stand mit v13 angelegt (Motiv-PNG 1,26 MB, ein Angebot): verschlüsselter Arbeitsstand 8,97 MB. Nach Öffnen mit v14: 7,0 KB, Bild einmal im verschlüsselten Bildspeicher, Platzierung, Transferjob und Altangebot zeigen auf dieselbe Referenz und das Motiv an.
+- Gerätekennung: Auftrag RT-PC1-A-2026-00001, Angebot RT-PC1-AN-2026-00001; zweites Gerät RT-TAB2-A-2026-00001. Nummer wird erst nach bestandener Prüfung verbraucht. Gerätezähler bleibt nach Import eines älteren Stands erhalten.
+- Angebot mit Textil ohne Motiv nach Rückfrage möglich, Hinweis „Transferdruck noch offen“. Rechnung bleibt gesperrt.
+- Fehlerhafte Kalkulation eines Auftrags blockiert das Speichern nicht mehr, sie wird am Auftrag angezeigt.
+- Sicherung v2 (1,69 MB) enthält das Bild einmal verschlüsselt. Wiederherstellung auf frischem Browserprofil mit verdeckter Passworteingabe; falsches Passwort abgewiesen. Alte v13-Sicherung lässt sich öffnen, Bilder werden dabei ausgelagert.
+- Sperren bei Speicherfehler fragt nach. Automatische Sperre mit halb erfasstem Kunden: Entwurf verschlüsselt aufbewahrt, nach Entsperren wiederhergestellt und gespeichert.
+tests/test-automatic.cjs weiterhin PASS.
+NICHT GEPRÜFT: Android-Gerät, Windows-Browser mit Bedienung von Hand, Druck/PDF mit Bildern aus dem Bildspeicher (blob-URLs), Zusage des dauerhaften Speichers auf Android. Die übrigen zwölf Prüfsuiten aus v13 lagen nicht vor und wurden nicht erneut ausgeführt.
