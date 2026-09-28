@@ -129,7 +129,8 @@ Was die App dabei besser kann als der RIP: Die Vorschau auf der Textilfarbe. Im 
 3. Nutzer wählt das Verfahren: Schwarz entfernen oder bis zu 4 Farben entfernen.
 4. Vorschau zeigt nebeneinander: Motiv auf Schachbrett (das ist die Folie) und Motiv auf der Textilfarbe (das ist das Shirt).
 5. Nutzer stellt die Regler ein, bis es passt.
-6. Export als neues PNG mit Alphakanal. Dateiname bekommt den Zusatz `_knockout`.
+6. Nutzer prüft die Druckbreite in cm. Sie kommt aus dem Datencheck, aus der dpi-Angabe der PNG oder aus der PDF-Seitengröße; fehlt sie, muss er sie eintragen.
+7. Export als neues PNG mit Alphakanal, auf die Druckbreite mit genau 300 dpi umgerechnet und mit eingebettetem sRGB-Farbprofil (Änderung vom 28.09.2026). Dateiname: `<Name>_<Breite>x<Höhe>cm_300dpi_knockout.png`.
 
 ### 4b.2 Schwarz entfernen
 
@@ -163,7 +164,7 @@ Die exportierte Datei darf im RIP nicht noch einmal durch KnockMeBlackOut laufen
 
 - den Zusatz `_knockout` in den Dateinamen,
 - die verwendete Textilfarbe und die Reglerwerte in die PNG-Metadaten (tEXt-Chunk),
-- eine Zeile in den Prüfbericht: „Knockout bereits angewendet, Textilfarbe #1A1A1A. Im RIP kein KnockMeOut aktivieren.“
+- eine Zeile in den Prüfbericht: „Knockout bereits angewendet, Textilfarbe #1A1A1A. Datei: 10 × 10 cm, 300 dpi, sRGB. Im RIP kein KnockMeOut aktivieren.“
 
 ### 4b.6 Was Modul 2 nicht macht
 

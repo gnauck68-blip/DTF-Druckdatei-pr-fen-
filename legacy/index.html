@@ -368,8 +368,15 @@
 
       <div class="card">
         <h2>Export</h2>
+        <div class="size-row">
+          <div class="field">
+            <label for="koWidthCm">Druckbreite in cm</label>
+            <input type="number" id="koWidthCm" min="0.5" max="300" step="0.1" inputmode="decimal">
+          </div>
+          <div class="height-out" id="koHeightOut">Höhe: –</div>
+        </div>
         <button class="export-btn" id="koExportBtn" disabled>PNG exportieren (_knockout)</button>
-        <p class="export-note">Schreibt Textilfarbe und Reglerwerte in die PNG-Metadaten (tEXt-Chunk).</p>
+        <p class="export-note">Die Datei wird in dieser Breite mit 300 dpi und sRGB-Farbprofil gespeichert. Textilfarbe und Reglerwerte stehen zusätzlich in den PNG-Metadaten (tEXt-Chunk).</p>
         <p class="file-meta" id="koReportLine" style="margin-top:8px;"></p>
       </div>
     </aside>
@@ -1440,20 +1447,25 @@
 
   // pHYs-Chunk (300 DPI = 11811 Pixel/Meter) direkt nach IHDR einfügen.
   // Vorhandene pHYs-Chunks werden entfernt.
+  // Fertiger iCCP-Chunk mit dem sRGB-Profil (IEC 61966-2.1), damit das RIP die Farben eindeutig zuordnet.
+  var ICCP_SRGB = Uint8Array.from(atob("AAABdmlDQ1BJQ0MgUHJvZmlsZQAAeJx1kT1Lw1AUhh+rUr8ddBB16FDFQUEUxFHr4FKk1ApWXdo0aYU2DUmKFFfBxUFwEF38GvwHugquCoKgCCLOjn4tUuK5VmiResPNeXjvfQ8nb8AXzmo5p2EKcqZrR2dDgcX4UsD/QjM9dDBKX0JzrOlIJMy/6/OOOlVvR1Sv/+/VXK0p3dGgrkl4QrNsV1imIbzmWoq3hLu1TCIlfCg8bMuAwldKT5b5WXG6zO+K7Vh0BnyqZyBdxckq1jJ2TnhIOJjLFrTfedSXtOnmwrzUXtn9OESZJUSAJAVWyeIyItWUzGr7Rn98c+TFo8nboogtjjQZ8Q6LWpCuulRDdF2eLEWV+988HWN8rNy9LQSNT573NgD+HShte97XkeeVjqH+ES7Mij8vOU1+iL5d0YIH0LkBZ5cVLbkL55vQ82Al7MSPVC/bZxjwegrtcei6gZblcla/55zcQ2xdftE17O3DoNzvXPkGQtRoKKffvQU="), function(ch){ return ch.charCodeAt(0); });
+  window.DTFPng = { injectPhys: function(png, ppm){ return injectPhys(png, ppm); } };
+
   function injectPhys(png, ppm){
     // PNG-Signatur prüfen
     var sig = [137,80,78,71,13,10,26,10];
     for (var s = 0; s < 8; s++){
       if (png[s] !== sig[s]) throw new Error("Keine gültige PNG");
     }
-    // Chunks einsammeln, pHYs verwerfen
+    // Chunks einsammeln, pHYs und alte Farbangaben verwerfen (werden durch sRGB ersetzt)
+    var drop = { pHYs: 1, iCCP: 1, sRGB: 1, gAMA: 1, cHRM: 1 };
     var chunks = [];
     var pos = 8;
     while (pos < png.length){
       var len = readU32(png, pos);
       var type = String.fromCharCode(png[pos+4], png[pos+5], png[pos+6], png[pos+7]);
       var end = pos + 12 + len;
-      if (type !== "pHYs") chunks.push(png.subarray(pos, end));
+      if (!drop[type]) chunks.push(png.subarray(pos, end));
       pos = end;
       if (type === "IEND") break;
     }
@@ -1473,12 +1485,13 @@
     writeU32(phys, 17, crc32(crcInput));
 
     // Zusammensetzen: Signatur, IHDR, pHYs, Rest
-    var totalLen = 8 + 21;
+    var totalLen = 8 + 21 + ICCP_SRGB.length;
     chunks.forEach(function(c){ totalLen += c.length; });
     var outArr = new Uint8Array(totalLen);
     outArr.set(sig, 0);
     var o = 8;
     outArr.set(chunks[0], o); o += chunks[0].length; // IHDR ist immer der erste Chunk
+    outArr.set(ICCP_SRGB, o); o += ICCP_SRGB.length; // Farbprofil muss vor den Bilddaten stehen
     outArr.set(phys, o); o += 21;
     for (var c = 1; c < chunks.length; c++){
       outArr.set(chunks[c], o); o += chunks[c].length;
@@ -2082,6 +2095,30 @@
   var addColorBtn = document.getElementById("koAddColorBtn");
   var exportBtn = document.getElementById("koExportBtn");
   var reportLine = document.getElementById("koReportLine");
+  var koWidth = document.getElementById("koWidthCm"), koHeightOut = document.getElementById("koHeightOut");
+  function koCm(v){ return String(Math.round(v * 10) / 10).replace(".", ","); }
+  function koWidthValue(){ var v = parseFloat(String(koWidth.value).replace(",", ".")); return isFinite(v) && v > 0 ? v : null; }
+  function updateKoHeight(){
+    var w = koWidthValue();
+    koHeightOut.textContent = src && w ? "Höhe: " + koCm(w * src.height / src.width) + " cm" : "Höhe: –";
+  }
+  koWidth.addEventListener("input", updateKoHeight);
+  // Druckbreite aus der pHYs-Angabe einer PNG lesen (nur Einheit Meter), sonst null.
+  function pngWidthCm(buf, pxWidth){
+    var b = new Uint8Array(buf), pos = 8;
+    if (b.length < 8 || b[0] !== 137 || b[1] !== 80) return null;
+    while (pos + 8 <= b.length){
+      var len = ((b[pos] << 24) | (b[pos+1] << 16) | (b[pos+2] << 8) | b[pos+3]) >>> 0;
+      var type = String.fromCharCode(b[pos+4], b[pos+5], b[pos+6], b[pos+7]);
+      if (type === "pHYs" && len === 9 && b[pos+16] === 1){
+        var ppm = ((b[pos+8] << 24) | (b[pos+9] << 16) | (b[pos+10] << 8) | b[pos+11]) >>> 0;
+        return ppm > 0 ? pxWidth / ppm * 100 : null;
+      }
+      if (type === "IDAT" || type === "IEND") return null;
+      pos += 12 + len;
+    }
+    return null;
+  }
 
   var STORAGE_KEY = "dtf-knockout-colors";
   var src = null; // Original-Canvas aus Modul 1
@@ -2190,9 +2227,11 @@
   });
 
   // ---------- Datei übernehmen: entweder per Handoff aus Modul 1, oder direkt hier hochgeladen ----------
-  function adoptCanvas(canvas, name){
+  function adoptCanvas(canvas, name, wCm){
     src = canvas;
-    window.DTFHandoff = { canvas: canvas, name: name, wCm: null };
+    window.DTFHandoff = { canvas: canvas, name: name, wCm: wCm || null };
+    koWidth.value = wCm ? String(Math.round(wCm * 10) / 10) : "";
+    updateKoHeight();
     app.classList.add("show");
     fileMeta.textContent = name + " · " + src.width + " × " + src.height + " px";
     exportBtn.disabled = false;
@@ -2202,7 +2241,7 @@
   window.addEventListener("dtf-handoff", function(){
     var h = window.DTFHandoff;
     if (!h) return;
-    adoptCanvas(h.canvas, h.name);
+    adoptCanvas(h.canvas, h.name, h.wCm);
   });
 
   function loadRasterKO(file){
@@ -2215,7 +2254,7 @@
         var c = document.createElement("canvas");
         c.width = img.naturalWidth; c.height = img.naturalHeight;
         c.getContext("2d").drawImage(img, 0, 0);
-        resolve(c);
+        file.arrayBuffer().then(function(buf){ c.wCm = pngWidthCm(buf, c.width); }, function(){}).then(function(){ resolve(c); });
       };
       img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("Datei ist beschädigt oder kein gültiges Bild")); };
       img.src = url;
@@ -2228,6 +2267,7 @@
       return pdfjsLib.getDocument({ data: buf }).promise;
     }).then(function(pdf){ return pdf.getPage(1); }).then(function(page){
       var scale = 300 / 72;
+      var pageWidthCm = page.getViewport({ scale: 1 }).width / 72 * 2.54;
       var viewport = page.getViewport({ scale: scale });
       var MAX = 8000;
       if (viewport.width > MAX || viewport.height > MAX){
@@ -2238,7 +2278,7 @@
       c.width = Math.round(viewport.width);
       c.height = Math.round(viewport.height);
       return page.render({ canvasContext: c.getContext("2d"), viewport: viewport, background: "rgba(0,0,0,0)" })
-        .promise.then(function(){ return c; });
+        .promise.then(function(){ c.wCm = pageWidthCm; return c; });
     });
   }
 
@@ -2248,7 +2288,7 @@
     var isPdf = ext.toLowerCase() === "pdf";
     var promise = isPdf ? loadPdfKO(file) : loadRasterKO(file);
     promise.then(function(c){
-      adoptCanvas(c, file.name.replace(/\.[^.]+$/, ""));
+      adoptCanvas(c, file.name.replace(/\.[^.]+$/, ""), c.wCm);
     }).catch(function(err){
       showError("Die Datei konnte nicht gelesen werden: " + (err && err.message ? err.message : "unbekannter Fehler"));
     });
@@ -2389,7 +2429,18 @@
   exportBtn.addEventListener("click", function(){
     if (!src) return;
     clearError();
-    var result = computeKnockout();
+    var wCm = koWidthValue();
+    if (!wCm){ showError("Bitte die Druckbreite in cm eingeben. Daraus wird die Datei mit 300 dpi berechnet."); koWidth.focus(); return; }
+    var hCm = wCm * src.height / src.width;
+    var targetW = Math.round(wCm / 2.54 * 300), targetH = Math.round(hCm / 2.54 * 300);
+    if (targetW > 20000 || targetH > 20000){ showError("Über 20.000 px pro Seite schafft der Browser nicht zuverlässig. Bitte eine kleinere Breite wählen."); return; }
+    var knocked = computeKnockout();
+    // Auf die Zielgröße mit genau 300 dpi umrechnen, damit das RIP die richtige Druckgröße liest.
+    var result = document.createElement("canvas");
+    result.width = Math.max(1, targetW); result.height = Math.max(1, targetH);
+    var rctx = result.getContext("2d");
+    rctx.imageSmoothingEnabled = true; rctx.imageSmoothingQuality = "high";
+    rctx.drawImage(knocked, 0, 0, result.width, result.height);
     var shirtHex = normalizeHex(colorHex.value) || "#1A1A1A";
     var mode = modeBlack.checked ? "schwarz" : "farben";
     var meta = modeBlack.checked
@@ -2399,11 +2450,11 @@
     result.toBlob(function(blob){
       if (!blob){ showError("Die PNG konnte nicht erzeugt werden."); return; }
       blob.arrayBuffer().then(function(buf){
-        var withMeta = injectText(new Uint8Array(buf), "dtf-knockout", meta);
+        var withMeta = window.DTFPng.injectPhys(injectText(new Uint8Array(buf), "dtf-knockout", meta), 11811); // 11811 px/m = 300 dpi
         var h = window.DTFHandoff;
-        var name = (h && h.name ? h.name : "motiv") + "_knockout.png";
+        var name = (h && h.name ? h.name : "motiv") + "_" + koCm(wCm) + "x" + koCm(hCm) + "cm_300dpi_knockout.png";
         downloadBlob(new Blob([withMeta], { type: "image/png" }), name);
-        reportLine.textContent = "Knockout bereits angewendet, Textilfarbe " + shirtHex + ". Im RIP kein KnockMeOut aktivieren.";
+        reportLine.textContent = "Knockout bereits angewendet, Textilfarbe " + shirtHex + ". Datei: " + koCm(wCm) + " × " + koCm(hCm) + " cm, 300 dpi, sRGB. Im RIP kein KnockMeOut aktivieren.";
       });
     }, "image/png");
   });
