@@ -1451,6 +1451,23 @@
   var ICCP_SRGB = Uint8Array.from(atob("AAABdmlDQ1BJQ0MgUHJvZmlsZQAAeJx1kT1Lw1AUhh+rUr8ddBB16FDFQUEUxFHr4FKk1ApWXdo0aYU2DUmKFFfBxUFwEF38GvwHugquCoKgCCLOjn4tUuK5VmiResPNeXjvfQ8nb8AXzmo5p2EKcqZrR2dDgcX4UsD/QjM9dDBKX0JzrOlIJMy/6/OOOlVvR1Sv/+/VXK0p3dGgrkl4QrNsV1imIbzmWoq3hLu1TCIlfCg8bMuAwldKT5b5WXG6zO+K7Vh0BnyqZyBdxckq1jJ2TnhIOJjLFrTfedSXtOnmwrzUXtn9OESZJUSAJAVWyeIyItWUzGr7Rn98c+TFo8nboogtjjQZ8Q6LWpCuulRDdF2eLEWV+988HWN8rNy9LQSNT573NgD+HShte97XkeeVjqH+ES7Mij8vOU1+iL5d0YIH0LkBZ5cVLbkL55vQ82Al7MSPVC/bZxjwegrtcei6gZblcla/55zcQ2xdftE17O3DoNzvXPkGQtRoKKffvQU="), function(ch){ return ch.charCodeAt(0); });
   window.DTFPng = { injectPhys: function(png, ppm){ return injectPhys(png, ppm); } };
 
+  // Bilddaten in 64-KB-IDAT-Blöcke umpacken. Der Browser schreibt 4-KB-Blöcke mit einem 6-Byte-Block
+  // am Ende; PrintSuite DTF meldet dann einen „Postscript Konvertierungsfehler“ (geprüft am 29.09.2026).
+  function idatBlocks(parts, total){
+    var all = new Uint8Array(total), at = 0, out = [];
+    parts.forEach(function(p){ all.set(p, at); at += p.length; });
+    for (var i = 0; i < total; i += 65536){
+      var data = all.subarray(i, Math.min(total, i + 65536));
+      var block = new Uint8Array(12 + data.length);
+      writeU32(block, 0, data.length);
+      block.set([73, 68, 65, 84], 4); // "IDAT"
+      block.set(data, 8);
+      writeU32(block, 8 + data.length, crc32(block.subarray(4, 8 + data.length)));
+      out.push(block);
+    }
+    return out;
+  }
+
   function injectPhys(png, ppm){
     // PNG-Signatur prüfen
     var sig = [137,80,78,71,13,10,26,10];
@@ -1459,13 +1476,15 @@
     }
     // Chunks einsammeln, pHYs und alte Farbangaben verwerfen (werden durch sRGB ersetzt)
     var drop = { pHYs: 1, iCCP: 1, sRGB: 1, gAMA: 1, cHRM: 1 };
-    var chunks = [];
+    var chunks = [], idat = [], idatLen = 0;
     var pos = 8;
     while (pos < png.length){
       var len = readU32(png, pos);
       var type = String.fromCharCode(png[pos+4], png[pos+5], png[pos+6], png[pos+7]);
       var end = pos + 12 + len;
-      if (!drop[type]) chunks.push(png.subarray(pos, end));
+      if (type === "IDAT"){ idat.push(png.subarray(pos + 8, pos + 8 + len)); idatLen += len; }
+      else if (type === "IEND"){ chunks = chunks.concat(idatBlocks(idat, idatLen)); chunks.push(png.subarray(pos, end)); }
+      else if (!drop[type]) chunks.push(png.subarray(pos, end));
       pos = end;
       if (type === "IEND") break;
     }
